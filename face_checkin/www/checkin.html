@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1f2937">
+    <title>Employee Check-in Portal</title>
+    <link rel="manifest" href="/assets/face_checkin/manifest.json">
+    <link rel="icon" href="/assets/face_checkin/icon-192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            min-height: 100vh;
+            color: #f9fafb;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: rgba(31, 41, 55, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+            padding: 1.5rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #f9fafb;
+        }
+
+        .header .subtitle {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-top: 0.25rem;
+        }
+
+        .time-display {
+            text-align: right;
+        }
+
+        .current-time {
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: #f9fafb;
+        }
+
+        .current-date {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-top: 0.25rem;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 2rem;
+            min-height: calc(100vh - 120px);
+        }
+
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: rgba(31, 41, 55, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.125rem;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #f9fafb;
+        }
+
+        .project-selection {
+            position: relative;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #e5e7eb;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: rgba(17, 24, 39, 0.8);
+            border: 1px solid rgba(75, 85, 99, 0.5);
+            border-radius: 8px;
+            color: #f9fafb;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-select option {
+            background: #1f2937;
+            color: #f9fafb;
+        }
+
+        .camera-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 640px;
+            height: 400px;
+            object-fit: cover;
+            border-radius: 12px;
+            background: rgba(17, 24, 39, 0.8);
+            border: 2px solid rgba(75, 85, 99, 0.3);
+            margin-bottom: 1.5rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-panel {
+            margin-bottom: 1.5rem;
+        }
+
+        .status-content {
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status-content.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+        }
+
+        .status-content.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .status-content.info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+        }
+
+        .recent-checkins {
+            flex: 1;
+        }
+
+        .checkin-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            background: rgba(17, 24, 39, 0.5);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .checkin-item:hover {
+            background: rgba(17, 24, 39, 0.8);
+            border-color: rgba(75, 85, 99, 0.5);
+        }
+
+        .employee-info {
+            flex: 1;
+        }
+
+        .employee-name {
+            font-weight: 600;
+            color: #f9fafb;
+            margin-bottom: 0.25rem;
+        }
+
+        .checkin-time {
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        .checkin-project {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+
+        .log-badge {
+            padding: 0.375rem 0.875rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .log-badge.in {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .log-badge.out {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .confidence-badge {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 1rem;
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .right-panel {
+                order: -1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
+            }
+            
+            .main-container {
+                padding: 1rem;
+            }
+            
+            .card {
+                padding: 1rem;
+            }
+            
+            #video {
+                height: 300px;
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .project-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 20px;
+            color: #34d399;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-top: 1rem;
+        }
+
+        .instructions {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .instructions h4 {
+            color: #60a5fa;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .instructions ol {
+            color: #9ca3af;
+            font-size: 0.875rem;
+            padding-left: 1.25rem;
+        }
+
+        .instructions li {
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div>
+                    <h1>Employee Check-in Portal</h1>
+                    <div class="subtitle">Facial Recognition Attendance System</div>
+                </div>
+            </div>
+            <div class="time-display">
+                <div class="current-time" id="currentTime"></div>
+                <div class="current-date" id="currentDate"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <!-- Project Selection -->
+            <div class="card project-selection">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <div class="card-title">Project Selection</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="projectSelect">Choose Active Project</label>
+                    <select class="form-select" id="projectSelect" required>
+                        <option value="">Loading projects...</option>
+                    </select>
+                    <div class="project-status hidden" id="projectStatus">
+                        <i class="fas fa-check-circle"></i>
+                        <span id="selectedProjectName"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camera Section -->
+            <div class="card camera-container">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                    <div class="card-title">Face Recognition</div>
+                </div>
+                
+                <div class="instructions">
+                    <h4><i class="fas fa-info-circle"></i> How to Check In</h4>
+                    <ol>
+                        <li>Select your project from the dropdown above</li>
+                        <li>Click "Start Camera" to activate face recognition</li>
+                        <li>Position your face clearly in the camera frame</li>
+                        <li>Click "Scan Face" when ready</li>
+                    </ol>
+                </div>
+
+                <video id="video" autoplay muted playsinline></video>
+                <div class="controls">
+                    <button class="btn btn-primary" id="startCamera">
+                        <i class="fas fa-camera"></i>
+                        Start Camera
+                    </button>
+                    <button class="btn btn-success" id="captureBtn" disabled>
+                        <i class="fas fa-user-check"></i>
+                        Scan Face
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status Panel -->
+            <div class="card status-panel hidden" id="statusPanel">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="card-title">Status</div>
+                </div>
+                <div class="status-content" id="statusContent"></div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <!-- Recent Check-ins -->
+            <div class="card recent-checkins">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <div class="card-title">Today's Check-ins</div>
+                </div>
+                <div id="recentCheckins">
+                    <div class="loading pulse"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set Frappe context
+        window.frappe = window.frappe || {};
+        frappe.csrf_token = '{{ csrf_token }}';
+        
+        class FaceCheckinApp {
+            constructor() {
+                this.video = document.getElementById('video');
+                this.projectSelect = document.getElementById('projectSelect');
+                this.startCameraBtn = document.getElementById('startCamera');
+                this.captureBtn = document.getElementById('captureBtn');
+                this.statusPanel = document.getElementById('statusPanel');
+                this.statusContent = document.getElementById('statusContent');
+                this.recentCheckins = document.getElementById('recentCheckins');
+                
+                this.stream = null;
+                this.isProcessing = false;
+                this.selectedProject = null;
+                
+                this.init();
+            }
+            
+            async init() {
+                this.updateTime();
+                setInterval(() => this.updateTime(), 1000);
+                
+                // Check system status first
+                await this.checkSystemStatus();
+                
+                await this.loadProjects();
+                
+                this.projectSelect.addEventListener('change', () => {
+                    this.selectedProject = this.projectSelect.value;
+                    this.updateProjectStatus();
+                    this.loadRecentCheckins();
+                });
+                
+                this.startCameraBtn.addEventListener('click', () => this.startCamera());
+                this.captureBtn.addEventListener('click', () => this.captureAndRecognize());
+                
+                this.loadRecentCheckins();
+                setInterval(() => this.loadRecentCheckins(), 30000); // Refresh every 30 seconds
+            }
+
+            async checkSystemStatus() {
+                try {
+                    const response = await fetch('/api/method/face_checkin.api.face_api.check_system_status', {
+                        headers: {
+                            'X-Frappe-CSRF-Token': frappe.csrf_token
+                        }
+                    });
+                    const data = await response.json();
+                    
+                    if (!data.message.face_recognition_available) {
+                        this.showStatus('error', `
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            <strong>Face Recognition Not Available</strong><br>
+                            Required dependencies are not installed.<br>
+                            <a href="/setup" style="color: #60a5fa; text-decoration: underline;">
+                                Visit setup guide for installation instructions
+                            </a>
+                        `);
+                        
+                        // Disable camera functionality
+                        this.startCameraBtn.disabled = true;
+                        this.startCameraBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Dependencies Required';
+                    }
+                } catch (error) {
+                    console.error('Error checking system status:', error);
+                }
+            }
+            
+            updateTime() {
+                const now = new Date();
+                document.getElementById('currentTime').textContent = 
+                    now.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                
+                document.getElementById('currentDate').textContent = 
+                    now.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+            }
+            
+            async startCamera() {
+                try {
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            facingMode: 'user'
+                        }
+                    });
+                    
+                    this.video.srcObject = this.stream;
+                    this.startCameraBtn.disabled = true;
+                    this.captureBtn.disabled = false;
+                    this.startCameraBtn.innerHTML = '<i class="fas fa-video"></i> Camera Active';
+                    
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    this.showStatus('error', 'Failed to access camera. Please check permissions.');
+                }
+            }
+            
+            async captureAndRecognize() {
+                if (this.isProcessing) return;
+                
+                if (!this.selectedProject) {
+                    this.showStatus('error', '❌ Please select a project first');
+                    return;
+                }
+                
+                this.isProcessing = true;
+                this.captureBtn.disabled = true;
+                this.captureBtn.innerHTML = '<span class="loading"></span> Recognizing...';
+                
+                try {
+                    const imageData = this.captureFrame();
+                    const result = await this.recognizeEmployee(imageData);
+                    
+                    if (result.status === 'success') {
+                        this.showStatus('success', 
+                            `<i class="fas fa-check-circle"></i> ${result.message}<br>
+                            <strong>${result.employee_name}</strong><br>
+                            <span class="log-badge ${result.log_type.toLowerCase()}">${result.log_type}</span>
+                            <span class="confidence-badge">${result.confidence}% match</span>`
+                        );
+                        this.loadRecentCheckins(); // Refresh the list
+                    } else {
+                        this.showStatus('error', `<i class="fas fa-exclamation-circle"></i> ${result.message}`);
+                    }
+                    
+                } catch (error) {
+                    console.error('Recognition error:', error);
+                    this.showStatus('error', '❌ System error during recognition');
+                } finally {
+                    this.isProcessing = false;
+                    this.captureBtn.disabled = false;
+                    this.captureBtn.innerHTML = '<i class="fas fa-user-check"></i> Scan Face';
+                }
+            }
+            
+            captureFrame() {
+                const canvas = document.createElement('canvas');
+                canvas.width = this.video.videoWidth;
+                canvas.height = this.video.videoHeight;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(this.video, 0, 0);
+                
+                return canvas.toDataURL('image/jpeg', 0.8);
+            }
+            
+            async loadProjects() {
+                try {
+                    // Show loading state
+                    this.projectSelect.innerHTML = '<option value="">Loading projects...</option>';
+                    
+                    const response = await fetch('/api/method/face_checkin.api.face_api.get_projects', {
+                        headers: {
+                            'X-Frappe-CSRF-Token': frappe.csrf_token
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('Projects response:', data); // Debug logging
+                    
+                    this.projectSelect.innerHTML = '<option value="">Select a project...</option>';
+                    
+                    // Handle Frappe API response structure
+                    const responseData = data.message || data;
+                    
+                    if (responseData && responseData.status === 'success' && responseData.projects && responseData.projects.length > 0) {
+                        responseData.projects.forEach(project => {
+                            const option = document.createElement('option');
+                            option.value = project.name;
+                            option.textContent = project.project_name || project.name;
+                            this.projectSelect.appendChild(option);
+                        });
+                        
+                        console.log(`Loaded ${responseData.projects.length} projects successfully`);
+                    } else if (responseData && responseData.status === 'error') {
+                        this.projectSelect.innerHTML = '<option value="">Projects unavailable</option>';
+                        this.showStatus('error', `<i class="fas fa-exclamation-triangle"></i> ${responseData.message}`);
+                        console.error('Project loading error:', responseData.message);
+                    } else {
+                        this.projectSelect.innerHTML = '<option value="">No projects available</option>';
+                        this.showStatus('warning', '<i class="fas fa-exclamation-triangle"></i> No projects found. Please create projects in ERPNext first.');
+                        console.warn('No projects found in response:', responseData);
+                        
+                        // Add debug option for System Managers
+                        this.addDebugOption();
+                    }
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                    this.projectSelect.innerHTML = '<option value="">Error loading projects</option>';
+                    this.showStatus('error', `<i class="fas fa-exclamation-triangle"></i> Failed to load projects: ${error.message}`);
+                }
+            }
+            
+            addDebugOption() {
+                // Add debug button for troubleshooting (only for System Managers)
+                const debugContainer = document.createElement('div');
+                debugContainer.style.marginTop = '10px';
+                debugContainer.innerHTML = `
+                    <button class="btn btn-primary" onclick="window.faceApp.debugProjects()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                        <i class="fas fa-bug"></i> Debug Projects
+                    </button>
+                `;
+                
+                const projectSection = document.querySelector('.project-selection .form-group');
+                if (projectSection && !projectSection.querySelector('.debug-container')) {
+                    debugContainer.className = 'debug-container';
+                    projectSection.appendChild(debugContainer);
+                }
+            }
+            
+            async debugProjects() {
+                try {
+                    const response = await fetch('/api/method/face_checkin.api.face_api.debug_project_status', {
+                        headers: {
+                            'X-Frappe-CSRF-Token': frappe.csrf_token
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    const debugInfo = data.message || data;
+                    
+                    if (debugInfo.error) {
+                        this.showStatus('error', `Debug Error: ${debugInfo.error}`);
+                        return;
+                    }
+                    
+                    let debugMessage = `
+                        <strong>🔍 Project Debug Information:</strong><br><br>
+                        <strong>User:</strong> ${debugInfo.user}<br>
+                        <strong>Roles:</strong> ${debugInfo.roles ? debugInfo.roles.join(', ') : 'None'}<br>
+                        <strong>Project DocType Exists:</strong> ${debugInfo.project_doctype_exists ? '✅ Yes' : '❌ No'}<br>
+                        <strong>Total Projects:</strong> ${debugInfo.project_count}<br>
+                        <strong>Can Read Projects:</strong> ${debugInfo.can_read_project ? '✅ Yes' : '❌ No'}<br>
+                    `;
+                    
+                    if (debugInfo.sample_projects && debugInfo.sample_projects.length > 0) {
+                        debugMessage += '<br><strong>Sample Projects:</strong><br>';
+                        debugInfo.sample_projects.forEach(project => {
+                            debugMessage += `• ${project.project_name || project.name} (${project.name}) - Status: ${project.status || 'None'} - Disabled: ${project.disabled || 0}<br>`;
+                        });
+                    }
+                    
+                    if (debugInfo.error_details && debugInfo.error_details.length > 0) {
+                        debugMessage += '<br><strong>⚠️ Errors:</strong><br>';
+                        debugInfo.error_details.forEach(error => {
+                            debugMessage += `• ${error}<br>`;
+                        });
+                    }
+                    
+                    this.showStatus('info', debugMessage);
+                    console.log('Full debug info:', debugInfo);
+                    
+                } catch (error) {
+                    console.error('Debug error:', error);
+                    this.showStatus('error', `Debug failed: ${error.message}`);
+                }
+            }
+
+            updateProjectStatus() {
+                const projectStatus = document.getElementById('projectStatus');
+                const selectedProjectName = document.getElementById('selectedProjectName');
+                
+                if (this.selectedProject) {
+                    const selectedOption = this.projectSelect.options[this.projectSelect.selectedIndex];
+                    selectedProjectName.textContent = selectedOption.textContent;
+                    projectStatus.classList.remove('hidden');
+                } else {
+                    projectStatus.classList.add('hidden');
+                }
+            }
+
+            async recognizeEmployee(imageData) {
+                const response = await fetch('/api/method/face_checkin.api.face_api.recognize_and_checkin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                    },
+                    body: JSON.stringify({
+                        image_base64: imageData,
+                        project: this.selectedProject,
+                        device_id: 'PWA_Terminal'
+                    })
+                });
+                
+                const data = await response.json();
+                return data.message;
+            }
+            
+            async loadRecentCheckins() {
+                try {
+                    let url = '/api/method/face_checkin.api.face_api.get_checkin_status';
+                    if (this.selectedProject) {
+                        url += `?project=${encodeURIComponent(this.selectedProject)}`;
+                    }
+                    
+                    const response = await fetch(url, {
+                        headers: {
+                            'X-Frappe-CSRF-Token': frappe.csrf_token
+                        }
+                    });
+                    const data = await response.json();
+                    
+                    if (data.message && data.message.recent_checkins) {
+                        this.displayRecentCheckins(data.message.recent_checkins);
+                    }
+                } catch (error) {
+                    console.error('Error loading recent checkins:', error);
+                }
+            }
+            
+            displayRecentCheckins(checkins) {
+                if (!checkins || checkins.length === 0) {
+                    this.recentCheckins.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-clock"></i>
+                            <div>No check-ins today</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const html = checkins.map(checkin => `
+                    <div class="checkin-item">
+                        <div class="employee-info">
+                            <div class="employee-name">${checkin.employee_name}</div>
+                            <div class="checkin-time">
+                                <i class="fas fa-clock"></i>
+                                ${new Date(checkin.time).toLocaleTimeString()}
+                            </div>
+                            ${checkin.custom_project ? `
+                                <div class="checkin-project">
+                                    <i class="fas fa-project-diagram"></i>
+                                    ${checkin.custom_project}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <span class="log-badge ${checkin.log_type.toLowerCase()}">${checkin.log_type}</span>
+                    </div>
+                `).join('');
+                
+                this.recentCheckins.innerHTML = html;
+            }
+            
+            showStatus(type, message) {
+                this.statusContent.className = `status-content ${type}`;
+                this.statusContent.innerHTML = message;
+                this.statusPanel.classList.remove('hidden');
+                this.statusPanel.classList.add('fade-in');
+                
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    this.statusPanel.classList.add('hidden');
+                }, 5000);
+            }
+        }
+        
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.faceApp = new FaceCheckinApp();
+        });
+        
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/assets/face_checkin/js/sw.js')
+                    .then(registration => console.log('SW registered'))
+                    .catch(error => console.log('SW registration failed'));
+            });
+        }
+    </script>
+    <script src="/assets/face_checkin/js/pwa-installer.js"></script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1f2937">
+    <title>Offline - Face Check-in System</title>
+    <link rel="manifest" href="/assets/face_checkin/manifest.json">
+    <link rel="icon" href="/assets/face_checkin/icon-192.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            color: #f9fafb;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .offline-container {
+            max-width: 500px;
+            background: rgba(31, 41, 55, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 16px;
+            padding: 3rem;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .offline-icon {
+            font-size: 4rem;
+            margin-bottom: 2rem;
+            opacity: 0.7;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.7;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #f9fafb;
+        }
+
+        p {
+            font-size: 1.125rem;
+            color: #d1d5db;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .feature-list {
+            background: rgba(17, 24, 39, 0.5);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            text-align: left;
+        }
+
+        .feature-list h3 {
+            color: #3b82f6;
+            margin-bottom: 1rem;
+            font-size: 1.125rem;
+        }
+
+        .feature-list ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 0.5rem 0;
+            color: #d1d5db;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        .retry-btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0.5rem;
+        }
+
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .secondary-btn {
+            background: rgba(75, 85, 99, 0.5);
+            color: white;
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0.5rem;
+            text-decoration: none;
+        }
+
+        .secondary-btn:hover {
+            background: rgba(75, 85, 99, 0.7);
+            transform: translateY(-2px);
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 20px;
+            color: #fca5a5;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .connection-status {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(17, 24, 39, 0.5);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        @media (max-width: 640px) {
+            .offline-container {
+                padding: 2rem;
+                margin: 1rem;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            p {
+                font-size: 1rem;
+            }
+
+            .retry-btn, .secondary-btn {
+                width: 100%;
+                margin: 0.25rem 0;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">📱</div>
+        
+        <div class="status-indicator">
+            <span id="connection-indicator">🔴</span>
+            <span id="connection-text">No Internet Connection</span>
+        </div>
+        
+        <h1>You're Offline</h1>
+        <p>Face Check-in System is not available right now. Some features may still work when you're offline.</p>
+
+        <div class="feature-list">
+            <h3>What you can do offline:</h3>
+            <ul>
+                <li>View previously cached employee data</li>
+                <li>Access the employee management interface</li>
+                <li>Browse system setup instructions</li>
+                <li>Data will sync when connection returns</li>
+            </ul>
+        </div>
+
+        <button class="retry-btn" onclick="checkConnection()">
+            <span id="retry-icon">🔄</span>
+            Try Again
+        </button>
+        
+        <a href="/checkin" class="secondary-btn">
+            📋 Go to Check-in
+        </a>
+        
+        <a href="/employee-images" class="secondary-btn">
+            👥 Employee Management
+        </a>
+
+        <div class="connection-status">
+            <div>Status: <span id="detailed-status">Checking connection...</span></div>
+            <div>Last online: <span id="last-online">Unknown</span></div>
+        </div>
+    </div>
+
+    <script>
+        let lastOnlineTime = localStorage.getItem('lastOnlineTime') || 'Unknown';
+        let checkInterval;
+
+        function updateConnectionStatus() {
+            const isOnline = navigator.onLine;
+            const indicator = document.getElementById('connection-indicator');
+            const text = document.getElementById('connection-text');
+            const status = document.getElementById('detailed-status');
+            const retryIcon = document.getElementById('retry-icon');
+            
+            if (isOnline) {
+                indicator.textContent = '🟢';
+                text.textContent = 'Connection Restored';
+                status.textContent = 'Online';
+                retryIcon.textContent = '✅';
+                
+                // Update last online time
+                lastOnlineTime = new Date().toLocaleString();
+                localStorage.setItem('lastOnlineTime', lastOnlineTime);
+                
+                // Try to reload the page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                indicator.textContent = '🔴';
+                text.textContent = 'No Internet Connection';
+                status.textContent = 'Offline';
+                retryIcon.textContent = '🔄';
+            }
+            
+            document.getElementById('last-online').textContent = lastOnlineTime;
+        }
+
+        function checkConnection() {
+            const retryBtn = document.querySelector('.retry-btn');
+            const retryIcon = document.getElementById('retry-icon');
+            
+            retryBtn.disabled = true;
+            retryIcon.textContent = '⏳';
+            
+            // Force a network request to check connectivity
+            fetch('/api/method/face_checkin.api.face_api.check_system_status', {
+                method: 'HEAD',
+                mode: 'no-cors',
+                cache: 'no-cache'
+            }).then(() => {
+                updateConnectionStatus();
+            }).catch(() => {
+                setTimeout(() => {
+                    retryBtn.disabled = false;
+                    retryIcon.textContent = '🔄';
+                }, 2000);
+            });
+        }
+
+        // Listen for online/offline events
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+
+        // Initial status check
+        updateConnectionStatus();
+
+        // Periodic connection check
+        checkInterval = setInterval(checkConnection, 30000); // Check every 30 seconds
+
+        // Service worker message handling
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', event => {
+                if (event.data && event.data.type === 'CONNECTION_RESTORED') {
+                    updateConnectionStatus();
+                }
+            });
+        }
+
+        // Clean up interval when page is hidden
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(checkInterval);
+            } else {
+                checkInterval = setInterval(checkConnection, 30000);
+                checkConnection();
+            }
+        });
+
+        console.log('Offline page loaded. PWA is working correctly.');
+    </script>
+</body>
+</html>

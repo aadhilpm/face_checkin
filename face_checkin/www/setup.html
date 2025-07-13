@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1f2937">
+    <title>Face Check-in Setup Guide</title>
+    <link rel="manifest" href="/assets/face_checkin/manifest.json">
+    <link rel="icon" href="/assets/face_checkin/icon-192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            min-height: 100vh;
+            color: #f9fafb;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(31, 41, 55, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #f9fafb;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #9ca3af;
+            font-size: 1.125rem;
+        }
+
+        .step {
+            background: rgba(17, 24, 39, 0.5);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .step h3 {
+            color: #f9fafb;
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .step p {
+            color: #d1d5db;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            color: #34d399;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+
+        .warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .warning-icon {
+            color: #f59e0b;
+            margin-right: 0.5rem;
+        }
+
+        .success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .success-icon {
+            color: #10b981;
+            margin-right: 0.5rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .status-check {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: rgba(17, 24, 39, 0.5);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 12px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-good {
+            color: #10b981;
+        }
+
+        .status-bad {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-cog"></i> Face Check-in Setup</h1>
+            <p>Install dependencies for facial recognition functionality</p>
+        </div>
+
+        <div class="warning">
+            <i class="fas fa-exclamation-triangle warning-icon"></i>
+            <strong>Dependencies Required:</strong> The face recognition system requires additional Python packages to function properly.
+        </div>
+
+        <div class="step">
+            <div class="step-number">1</div>
+            <h3>Access Your Server</h3>
+            <p>Connect to your Frappe/ERPNext server via SSH or terminal access where the bench is installed.</p>
+        </div>
+
+        <div class="step">
+            <div class="step-number">2</div>
+            <h3>Activate Bench Environment</h3>
+            <p>Navigate to your bench directory and activate the virtual environment:</p>
+            <div class="code-block">
+cd /path/to/your/bench<br>
+source env/bin/activate
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">3</div>
+            <h3>Install Face Recognition Dependencies</h3>
+            <p>Install the required Python packages for face recognition:</p>
+            <div class="code-block">
+pip install face-recognition pillow numpy
+            </div>
+            <div class="warning">
+                <i class="fas fa-info-circle warning-icon"></i>
+                <strong>Note:</strong> This may take several minutes as it needs to compile dlib and other dependencies.
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">4</div>
+            <h3>Install System Dependencies (if needed)</h3>
+            <p>If you encounter errors, you may need to install system-level dependencies first:</p>
+            <div class="code-block">
+# For Ubuntu/Debian:<br>
+sudo apt-get update<br>
+sudo apt-get install build-essential cmake<br>
+sudo apt-get install libopenblas-dev liblapack-dev<br>
+sudo apt-get install libx11-dev libgtk-3-dev<br>
+<br>
+# For CentOS/RHEL:<br>
+sudo yum groupinstall "Development Tools"<br>
+sudo yum install cmake<br>
+sudo yum install openblas-devel lapack-devel
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">5</div>
+            <h3>Restart Your Bench</h3>
+            <p>After installation, restart your bench to load the new dependencies:</p>
+            <div class="code-block">
+bench restart
+            </div>
+        </div>
+
+        <div class="status-check">
+            <h3><i class="fas fa-heartbeat"></i> System Status</h3>
+            <div id="statusContainer">
+                <div class="status-item">
+                    <span>Loading system status...</span>
+                    <div class="loading"></div>
+                </div>
+            </div>
+            <button class="btn" onclick="checkStatus()" style="margin-top: 1rem;">
+                <i class="fas fa-sync-alt"></i>
+                Refresh Status
+            </button>
+        </div>
+
+        <div class="success" style="margin-top: 2rem;">
+            <i class="fas fa-check-circle success-icon"></i>
+            Once dependencies are installed, you can proceed to the <a href="/checkin" style="color: #34d399;">check-in portal</a> and <a href="/employee-images" style="color: #34d399;">employee management page</a>.
+        </div>
+    </div>
+
+    <script>
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/method/face_checkin.api.face_api.check_system_status');
+                const data = await response.json();
+                
+                const status = data.message;
+                const container = document.getElementById('statusContainer');
+                
+                container.innerHTML = `
+                    <div class="status-item">
+                        <span>Face Recognition Available</span>
+                        <span class="${status.face_recognition_available ? 'status-good' : 'status-bad'}">
+                            <i class="fas fa-${status.face_recognition_available ? 'check' : 'times'}"></i>
+                            ${status.face_recognition_available ? 'Yes' : 'No'}
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span>Embedding Directory</span>
+                        <span class="${status.embedding_directory_exists ? 'status-good' : 'status-bad'}">
+                            <i class="fas fa-${status.embedding_directory_exists ? 'check' : 'times'}"></i>
+                            ${status.embedding_directory_exists ? 'Exists' : 'Missing'}
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span>Current User</span>
+                        <span style="color: #9ca3af;">${status.user}</span>
+                    </div>
+                    <div class="status-item">
+                        <span>User Roles</span>
+                        <span style="color: #9ca3af;">${status.user_roles.join(', ')}</span>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error checking status:', error);
+                document.getElementById('statusContainer').innerHTML = `
+                    <div class="status-item">
+                        <span style="color: #ef4444;">Error checking system status</span>
+                    </div>
+                `;
+            }
+        }
+        
+        // Check status on page load
+        document.addEventListener('DOMContentLoaded', checkStatus);
+        
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/assets/face_checkin/js/sw.js')
+                    .then(registration => console.log('SW registered'))
+                    .catch(error => console.log('SW registration failed'));
+            });
+        }
+    </script>
+    <script src="/assets/face_checkin/js/pwa-installer.js"></script>
+</body>
+</html>

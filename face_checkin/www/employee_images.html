@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1f2937">
+    <title>Employee Image Management</title>
+    <link rel="manifest" href="/assets/face_checkin/manifest.json">
+    <link rel="icon" href="/assets/face_checkin/icon-192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            min-height: 100vh;
+            color: #f9fafb;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #f9fafb;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #9ca3af;
+            font-size: 1.125rem;
+        }
+
+        .card {
+            background: rgba(31, 41, 55, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.125rem;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #f9fafb;
+        }
+
+        .step {
+            background: rgba(17, 24, 39, 0.5);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .step h3 {
+            color: #f9fafb;
+            font-size: 1.125rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .step p {
+            color: #d1d5db;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .employee-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .employee-card {
+            background: rgba(17, 24, 39, 0.5);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .employee-card:hover {
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .employee-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 1rem;
+            border: 3px solid rgba(75, 85, 99, 0.3);
+        }
+
+        .no-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(75, 85, 99, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: #6b7280;
+            font-size: 2rem;
+            border: 3px solid rgba(75, 85, 99, 0.3);
+        }
+
+        .employee-name {
+            font-weight: 600;
+            color: #f9fafb;
+            margin-bottom: 0.5rem;
+        }
+
+        .employee-id {
+            color: #9ca3af;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-badge {
+            padding: 0.375rem 0.875rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-has-image {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-no-image {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .status-enrolled {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .success-box {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: rgba(31, 41, 55, 0.95);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #f9fafb;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(75, 85, 99, 0.3);
+            color: #f9fafb;
+        }
+
+        .upload-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-option {
+            background: rgba(17, 24, 39, 0.5);
+            border: 2px solid rgba(75, 85, 99, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-option:hover {
+            border-color: rgba(59, 130, 246, 0.5);
+            background: rgba(17, 24, 39, 0.8);
+        }
+
+        .upload-option.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .upload-option i {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #3b82f6;
+        }
+
+        .camera-section {
+            margin: 1.5rem 0;
+        }
+
+        .camera-video {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 12px;
+            background: rgba(17, 24, 39, 0.8);
+            border: 2px solid rgba(75, 85, 99, 0.3);
+            margin: 0 auto;
+            display: block;
+        }
+
+        .file-upload-area {
+            border: 2px dashed rgba(75, 85, 99, 0.5);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            margin: 1.5rem 0;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-area:hover {
+            border-color: rgba(59, 130, 246, 0.5);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .file-upload-area.dragover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 12px;
+            margin: 1rem 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-users"></i> Employee Image Management</h1>
+            <p>Manage employee photos for face recognition system</p>
+        </div>
+
+        <!-- Instructions Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="card-title">How to Add Employee Images</div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">1</div>
+                <h3>Navigate to Employee List</h3>
+                <p>Go to <strong>HR > Employee</strong> in your ERPNext system, or click the button below:</p>
+                <a href="/app/employee" class="btn" target="_blank">
+                    <i class="fas fa-external-link-alt"></i>
+                    Open Employee List
+                </a>
+            </div>
+
+            <div class="step">
+                <div class="step-number">2</div>
+                <h3>Edit Employee Record</h3>
+                <p>Click on any employee to open their record, then click the <strong>Edit</strong> button.</p>
+            </div>
+
+            <div class="step">
+                <div class="step-number">3</div>
+                <h3>Upload Employee Image</h3>
+                <p>In the employee form, find the <strong>Image</strong> field and click <strong>Attach</strong> to upload a photo:</p>
+                <div class="info-box">
+                    <i class="fas fa-lightbulb" style="color: #60a5fa; margin-right: 0.5rem;"></i>
+                    <strong>Best Practices:</strong>
+                    <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                        <li>Use clear, well-lit photos</li>
+                        <li>Employee should face the camera directly</li>
+                        <li>Avoid sunglasses or face coverings</li>
+                        <li>Recommended size: 300x300 pixels or larger</li>
+                        <li>Supported formats: JPG, PNG</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">4</div>
+                <h3>Save and Create Face Enrollment</h3>
+                <p>After saving the employee record with the image, use the enrollment tools below to create face recognition data.</p>
+            </div>
+        </div>
+
+        <!-- Current Employees Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="card-title">Current Employees</div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <button class="btn" onclick="loadEmployees()">
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh List
+                </button>
+                <button class="btn btn-success" onclick="bulkEnroll()">
+                    <i class="fas fa-robot"></i>
+                    Bulk Enroll All
+                </button>
+            </div>
+
+            <div id="employeeContainer">
+                <div style="text-align: center; padding: 2rem;">
+                    <div class="loading"></div>
+                    <p style="margin-top: 1rem;">Loading employees...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Card -->
+        <div class="card" id="statusCard" style="display: none;">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="card-title">Status</div>
+            </div>
+            <div id="statusContent"></div>
+        </div>
+
+        <!-- Image Upload Modal -->
+        <div class="modal" id="uploadModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Upload Employee Image</h3>
+                    <button class="close-btn" onclick="closeUploadModal()">&times;</button>
+                </div>
+                
+                <div id="employeeInfo" class="info-box">
+                    <strong>Employee:</strong> <span id="modalEmployeeName"></span> (<span id="modalEmployeeId"></span>)
+                </div>
+
+                <div class="upload-options">
+                    <div class="upload-option" id="cameraOption" onclick="selectUploadMethod('camera')">
+                        <i class="fas fa-camera"></i>
+                        <h4>Take Photo</h4>
+                        <p>Use camera to capture image</p>
+                    </div>
+                    <div class="upload-option" id="fileOption" onclick="selectUploadMethod('file')">
+                        <i class="fas fa-upload"></i>
+                        <h4>Upload File</h4>
+                        <p>Select image from device</p>
+                    </div>
+                </div>
+
+                <!-- Camera Section -->
+                <div class="camera-section hidden" id="cameraSection">
+                    <video class="camera-video" id="modalVideo" autoplay muted playsinline></video>
+                    <div style="text-align: center; margin: 1rem 0;">
+                        <button class="btn btn-primary" id="startCameraBtn" onclick="startModalCamera()">
+                            <i class="fas fa-camera"></i>
+                            Start Camera
+                        </button>
+                        <button class="btn btn-success" id="capturePhotoBtn" onclick="capturePhoto()" disabled>
+                            <i class="fas fa-camera-retro"></i>
+                            Capture Photo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- File Upload Section -->
+                <div class="file-upload-area hidden" id="fileSection">
+                    <div onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: #3b82f6; margin-bottom: 1rem;"></i>
+                        <h4 style="margin-bottom: 0.5rem;">Drop image here or click to browse</h4>
+                        <p style="color: #9ca3af;">Supports JPG, PNG files</p>
+                    </div>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+                </div>
+
+                <!-- Preview Section -->
+                <div class="hidden" id="previewSection">
+                    <h4 style="margin-bottom: 1rem;">Preview:</h4>
+                    <img id="previewImage" class="preview-image">
+                    <div style="text-align: center; margin-top: 1rem;">
+                        <button class="btn btn-success" onclick="uploadToEmployee()">
+                            <i class="fas fa-upload"></i>
+                            Upload to Employee Record
+                        </button>
+                        <button class="btn" onclick="resetUpload()" style="background: rgba(75, 85, 99, 0.5);">
+                            <i class="fas fa-redo"></i>
+                            Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.frappe = window.frappe || {};
+        frappe.csrf_token = '{{ csrf_token }}';
+
+        async function loadEmployees() {
+            try {
+                const container = document.getElementById('employeeContainer');
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <div class="loading"></div>
+                        <p style="margin-top: 1rem;">Loading employees...</p>
+                    </div>
+                `;
+
+                const response = await fetch('/api/resource/Employee?fields=["name","employee_name","image"]&limit_page_length=100', {
+                    headers: {
+                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                    }
+                });
+                const data = await response.json();
+
+                if (data.data && data.data.length > 0) {
+                    displayEmployees(data.data);
+                } else {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                            <i class="fas fa-users" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                            <p>No employees found in the system.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading employees:', error);
+                document.getElementById('employeeContainer').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #ef4444;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                        <p>Error loading employees: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayEmployees(employees) {
+            const container = document.getElementById('employeeContainer');
+            
+            if (employees.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                        <i class="fas fa-users" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                        <p>No employees found.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'employee-grid';
+
+            employees.forEach(employee => {
+                const card = document.createElement('div');
+                card.className = 'employee-card';
+
+                const hasImage = employee.image && employee.image.trim() !== '';
+                const enrollmentStatus = checkEnrollmentStatus(employee.name);
+
+                card.innerHTML = `
+                    ${hasImage 
+                        ? `<img src="${employee.image}" alt="${employee.employee_name}" class="employee-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                           <div class="no-image" style="display: none;"><i class="fas fa-user"></i></div>`
+                        : `<div class="no-image"><i class="fas fa-user"></i></div>`
+                    }
+                    <div class="employee-name">${employee.employee_name || employee.name}</div>
+                    <div class="employee-id">${employee.name}</div>
+                    <div style="margin-bottom: 1rem;">
+                        <span class="status-badge ${hasImage ? 'status-has-image' : 'status-no-image'}">
+                            ${hasImage ? 'Has Image' : 'No Image'}
+                        </span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <a href="/app/employee/${employee.name}" class="btn" target="_blank" style="justify-content: center; margin: 0;">
+                            <i class="fas fa-edit"></i>
+                            Edit Employee
+                        </a>
+                        ${hasImage ? `
+                            <button class="btn btn-success" onclick="enrollEmployee('${employee.name}')" style="justify-content: center; margin: 0;">
+                                <i class="fas fa-robot"></i>
+                                Create Face Data
+                            </button>
+                        ` : `
+                            <button class="btn" onclick="uploadImage('${employee.name}')" style="justify-content: center; margin: 0; background: linear-gradient(135deg, #f59e0b, #d97706);">
+                                <i class="fas fa-camera"></i>
+                                Upload Image
+                            </button>
+                        `}
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+
+            container.innerHTML = '';
+            container.appendChild(grid);
+
+            // Add summary
+            const withImages = employees.filter(emp => emp.image && emp.image.trim() !== '').length;
+            const summary = document.createElement('div');
+            summary.className = 'info-box';
+            summary.style.marginBottom = '1.5rem';
+            summary.innerHTML = `
+                <i class="fas fa-chart-pie" style="color: #60a5fa; margin-right: 0.5rem;"></i>
+                <strong>Summary:</strong> ${employees.length} total employees, ${withImages} with images (${Math.round(withImages/employees.length*100)}%)
+            `;
+            container.insertBefore(summary, grid);
+        }
+
+        function checkEnrollmentStatus(employeeId) {
+            // This would check if face embedding exists
+            return 'unknown';
+        }
+
+        async function enrollEmployee(employeeId) {
+            try {
+                showStatus('info', `<i class="fas fa-spinner fa-spin"></i> Creating face recognition data for employee ${employeeId}...`);
+
+                const response = await fetch('/api/method/face_checkin.api.face_api.upload_face', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                    },
+                    body: JSON.stringify({
+                        employee_id: employeeId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.message && data.message.status === 'success') {
+                    showStatus('success', `<i class="fas fa-check-circle"></i> ${data.message.message}`);
+                } else {
+                    showStatus('error', `<i class="fas fa-exclamation-circle"></i> ${data.message ? data.message.message : 'Failed to create face data'}`);
+                }
+            } catch (error) {
+                console.error('Enrollment error:', error);
+                showStatus('error', `<i class="fas fa-exclamation-triangle"></i> Error: ${error.message}`);
+            }
+        }
+
+        async function bulkEnroll() {
+            try {
+                showStatus('info', `<i class="fas fa-spinner fa-spin"></i> Creating face recognition data for all employees with images...`);
+
+                const response = await fetch('/api/method/face_checkin.api.face_api.bulk_enroll_from_employee_images', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.message && data.message.status === 'success') {
+                    showStatus('success', `<i class="fas fa-check-circle"></i> ${data.message.message}<br>
+                        <small>Check browser console for detailed results.</small>`);
+                    console.log('Bulk enrollment results:', data.message.details);
+                } else {
+                    showStatus('error', `<i class="fas fa-exclamation-circle"></i> ${data.message ? data.message.message : 'Bulk enrollment failed'}`);
+                }
+            } catch (error) {
+                console.error('Bulk enrollment error:', error);
+                showStatus('error', `<i class="fas fa-exclamation-triangle"></i> Error: ${error.message}`);
+            }
+        }
+
+        function showStatus(type, message) {
+            const statusCard = document.getElementById('statusCard');
+            const statusContent = document.getElementById('statusContent');
+            
+            const colors = {
+                'info': 'rgba(59, 130, 246, 0.1)',
+                'success': 'rgba(16, 185, 129, 0.1)', 
+                'error': 'rgba(239, 68, 68, 0.1)'
+            };
+
+            statusContent.innerHTML = `
+                <div style="background: ${colors[type]}; padding: 1rem; border-radius: 8px;">
+                    ${message}
+                </div>
+            `;
+            
+            statusCard.style.display = 'block';
+
+            // Auto hide after 5 seconds for success/error
+            if (type !== 'info') {
+                setTimeout(() => {
+                    statusCard.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // Upload functionality
+        let currentEmployeeId = null;
+        let currentStream = null;
+        let capturedImageData = null;
+
+        function uploadImage(employeeId) {
+            currentEmployeeId = employeeId;
+            
+            // Find employee data
+            const employee = currentEmployeeData?.find(emp => emp.name === employeeId);
+            if (employee) {
+                document.getElementById('modalEmployeeName').textContent = employee.employee_name || employee.name;
+                document.getElementById('modalEmployeeId').textContent = employee.name;
+            }
+            
+            // Reset modal state
+            resetUpload();
+            
+            // Show modal
+            document.getElementById('uploadModal').classList.add('active');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.remove('active');
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            resetUpload();
+        }
+
+        function selectUploadMethod(method) {
+            // Reset active states
+            document.getElementById('cameraOption').classList.remove('active');
+            document.getElementById('fileOption').classList.remove('active');
+            
+            // Hide all sections
+            document.getElementById('cameraSection').classList.add('hidden');
+            document.getElementById('fileSection').classList.add('hidden');
+            document.getElementById('previewSection').classList.add('hidden');
+            
+            if (method === 'camera') {
+                document.getElementById('cameraOption').classList.add('active');
+                document.getElementById('cameraSection').classList.remove('hidden');
+            } else {
+                document.getElementById('fileOption').classList.add('active');
+                document.getElementById('fileSection').classList.remove('hidden');
+            }
+        }
+
+        async function startModalCamera() {
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    }
+                });
+                
+                document.getElementById('modalVideo').srcObject = currentStream;
+                document.getElementById('startCameraBtn').disabled = true;
+                document.getElementById('capturePhotoBtn').disabled = false;
+                document.getElementById('startCameraBtn').innerHTML = '<i class="fas fa-video"></i> Camera Active';
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                showStatus('error', `Failed to access camera: ${error.message}`);
+            }
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('modalVideo');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            capturedImageData = canvas.toDataURL('image/jpeg', 0.8);
+            showPreview(capturedImageData);
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    capturedImageData = e.target.result;
+                    showPreview(capturedImageData);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function showPreview(imageData) {
+            document.getElementById('previewImage').src = imageData;
+            document.getElementById('previewSection').classList.remove('hidden');
+            
+            // Hide upload method sections
+            document.getElementById('cameraSection').classList.add('hidden');
+            document.getElementById('fileSection').classList.add('hidden');
+        }
+
+        function resetUpload() {
+            // Reset all states
+            document.getElementById('cameraOption').classList.remove('active');
+            document.getElementById('fileOption').classList.remove('active');
+            document.getElementById('cameraSection').classList.add('hidden');
+            document.getElementById('fileSection').classList.add('hidden');
+            document.getElementById('previewSection').classList.add('hidden');
+            
+            // Reset camera
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            document.getElementById('startCameraBtn').disabled = false;
+            document.getElementById('capturePhotoBtn').disabled = true;
+            document.getElementById('startCameraBtn').innerHTML = '<i class="fas fa-camera"></i> Start Camera';
+            
+            // Reset file input
+            document.getElementById('fileInput').value = '';
+            capturedImageData = null;
+        }
+
+        async function uploadToEmployee() {
+            if (!capturedImageData || !currentEmployeeId) {
+                showStatus('error', 'No image data or employee selected');
+                return;
+            }
+
+            try {
+                showStatus('info', `<i class="fas fa-spinner fa-spin"></i> Uploading image and creating face data...`);
+
+                const response = await fetch('/api/method/face_checkin.api.face_api.upload_employee_image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                    },
+                    body: JSON.stringify({
+                        employee_id: currentEmployeeId,
+                        image_base64: capturedImageData,
+                        filename: `photo_${new Date().getTime()}.jpg`
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.message && data.message.status === 'success') {
+                    showStatus('success', `<i class="fas fa-check-circle"></i> ${data.message.message}<br>
+                        <small>Face recognition: ${data.message.face_enrollment.message}</small>`);
+                    
+                    // Close modal and refresh employee list
+                    closeUploadModal();
+                    setTimeout(() => loadEmployees(), 1000);
+                } else {
+                    showStatus('error', `<i class="fas fa-exclamation-circle"></i> ${data.message ? data.message.message : 'Upload failed'}`);
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showStatus('error', `<i class="fas fa-exclamation-triangle"></i> Error: ${error.message}`);
+            }
+        }
+
+        // Store employee data for modal use
+        let currentEmployeeData = [];
+
+        // Update displayEmployees to store data
+        const originalDisplayEmployees = displayEmployees;
+        displayEmployees = function(employees) {
+            currentEmployeeData = employees;
+            return originalDisplayEmployees(employees);
+        };
+
+        // Add drag and drop functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileSection = document.getElementById('fileSection');
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                fileSection.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                fileSection.addEventListener(eventName, () => fileSection.classList.add('dragover'), false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                fileSection.addEventListener(eventName, () => fileSection.classList.remove('dragover'), false);
+            });
+            
+            fileSection.addEventListener('drop', function(e) {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            capturedImageData = e.target.result;
+                            showPreview(capturedImageData);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                }
+            });
+        });
+
+        // Load employees on page load
+        document.addEventListener('DOMContentLoaded', loadEmployees);
+        
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/assets/face_checkin/js/sw.js')
+                    .then(registration => console.log('SW registered'))
+                    .catch(error => console.log('SW registration failed'));
+            });
+        }
+    </script>
+    <script src="/assets/face_checkin/js/pwa-installer.js"></script>
+</body>
+</html>

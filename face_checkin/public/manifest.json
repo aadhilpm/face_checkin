@@ -1,0 +1,55 @@
+{
+  "name": "Face Check-in System",
+  "short_name": "FaceCheckin",
+  "description": "Employee attendance tracking using facial recognition",
+  "start_url": "/checkin",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["business", "productivity"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/assets/face_checkin/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/face_checkin/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/face_checkin/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Check-in Portal",
+      "url": "/checkin",
+      "icons": [
+        {
+          "src": "/assets/face_checkin/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Employee Management",
+      "url": "/employee-images",
+      "icons": [
+        {
+          "src": "/assets/face_checkin/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
