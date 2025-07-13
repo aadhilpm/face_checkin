@@ -122,3 +122,7 @@ MIT License
 ---
 
 **Note**: This system requires proper employee consent and should comply with local privacy laws regarding biometric data collection and processing.
+
+## Development
+
+This app was developed using **Claude**, Anthropic's AI assistant, demonstrating the power of AI-assisted software development for creating sophisticated enterprise applications.

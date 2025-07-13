@@ -335,9 +335,14 @@ def get_projects():
                     "status": "Open",
                     "disabled": 0
                 },
-                fields=["name", "project_name"],
-                order_by="project_name asc"
+                fields=["name", "project_name", "status"],
+                order_by="name asc"
             )
+            
+            # Ensure project_name field exists, use name if empty
+            for project in projects:
+                if not project.get("project_name"):
+                    project["project_name"] = project["name"]
         except Exception as e:
             frappe.log_error(f"Method 1 failed: {str(e)}")
         
@@ -345,7 +350,9 @@ def get_projects():
         if not projects:
             try:
                 projects = frappe.db.sql("""
-                    SELECT name, project_name, status
+                    SELECT name, 
+                           COALESCE(NULLIF(project_name, ''), name) as project_name, 
+                           status
                     FROM `tabProject` 
                     WHERE (disabled = 0 OR disabled IS NULL)
                     AND (status = 'Open' OR status = 'Completed' OR status = 'Template' OR status IS NULL)
@@ -356,7 +363,7 @@ def get_projects():
                             WHEN status = 'Template' THEN 3
                             ELSE 4
                         END,
-                        project_name ASC
+                        name ASC
                     LIMIT 100
                 """, as_dict=True)
             except Exception as e:
@@ -370,10 +377,15 @@ def get_projects():
                     filters={
                         "disabled": 0
                     },
-                    fields=["name", "project_name"],
+                    fields=["name", "project_name", "status"],
                     order_by="creation desc",
                     limit=50
                 )
+                
+                # Ensure project_name field exists, use name if empty
+                for project in projects:
+                    if not project.get("project_name"):
+                        project["project_name"] = project["name"]
             except Exception as e:
                 frappe.log_error(f"Method 3 failed: {str(e)}")
         
