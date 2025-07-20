@@ -6,44 +6,68 @@ from io import BytesIO
 
 # Optional imports for face recognition functionality
 try:
-    import face_recognition
+    from face_checkin.utils.face_recognition_mp import (
+        face_locations, face_encodings, compare_faces, face_distance,
+        get_face_recognition, FACE_RECOGNITION_AVAILABLE
+    )
     import numpy as np
     from PIL import Image
-    FACE_RECOGNITION_AVAILABLE = True
 except ImportError as e:
-    frappe.log_error(f"Face recognition dependencies not available: {str(e)}")
+    try:
+        frappe.log_error(f"Face recognition dependencies not available: {str(e)}")
+    except:
+        print(f"Face recognition dependencies not available: {str(e)}")
     FACE_RECOGNITION_AVAILABLE = False
     # Create dummy modules to prevent crashes
     class DummyModule:
         pass
-    face_recognition = DummyModule()
+    face_locations = DummyModule()
+    face_encodings = DummyModule()
+    compare_faces = DummyModule()
+    face_distance = DummyModule()
     np = DummyModule()
     Image = DummyModule()
 
-# Use a more reliable path for Docker/Frappe Cloud environments
-try:
-    # Try the standard app path first
-    EMBEDDING_DIR = frappe.get_app_path('face_checkin', 'face_store', 'embeddings')
-except Exception:
-    # Fallback for Docker environments where app path might not resolve correctly
-    EMBEDDING_DIR = os.path.join(frappe.get_site_path(), 'private', 'files', 'face_embeddings')
-    if not os.path.exists(EMBEDDING_DIR):
-        os.makedirs(EMBEDDING_DIR, exist_ok=True)
+def get_embedding_directory():
+    """
+    Get the embedding directory with fallback options
+    """
+    try:
+        # Try the standard app path first
+        embedding_dir = frappe.get_app_path('face_checkin', 'face_store', 'embeddings')
+        if os.path.exists(embedding_dir):
+            return embedding_dir
+    except:
+        pass
+    
+    # Try alternative paths
+    alt_paths = [
+        os.path.join(frappe.get_site_path(), 'private', 'files', 'face_embeddings'),
+        os.path.join(frappe.get_site_path(), 'public', 'files', 'face_embeddings'),
+        os.path.join(frappe.get_site_path(), 'face_embeddings')
+    ]
+    
+    for path in alt_paths:
+        if os.path.exists(path):
+            return path
+    
+    # Create the default path if none exist
+    default_path = os.path.join(frappe.get_site_path(), 'private', 'files', 'face_embeddings')
+    os.makedirs(default_path, exist_ok=True)
+    return default_path
 
 @frappe.whitelist()
 def upload_face(employee_id, image_base64=None):
     """
     Create face embedding from employee image
-    If image_base64 is not provided, use employee's image from record
     """
     if not FACE_RECOGNITION_AVAILABLE:
         return {
             "status": "error",
-            "message": "Face recognition dependencies not installed. For Frappe Cloud: Please ensure face-recognition, numpy, pillow, and dlib are installed in your Docker environment. Contact support if this persists."
+            "message": "Face recognition dependencies not installed."
         }
     
-    if not os.path.exists(EMBEDDING_DIR):
-        os.makedirs(EMBEDDING_DIR)
+    embedding_dir = get_embedding_directory()
 
     if image_base64:
         # Use provided image
@@ -58,12 +82,47 @@ def upload_face(employee_id, image_base64=None):
                 "message": f"No image found for employee {employee_id}"
             }
         
-        # Get image file from Frappe
-        image_file = frappe.get_doc("File", {"file_url": employee.image})
-        image_path = frappe.get_site_path() + image_file.file_url
-        
+        # Get image file from Frappe with better error handling
         try:
+            if employee.image.startswith('/'):
+                # Absolute URL - construct full path
+                image_path = frappe.get_site_path() + employee.image
+            else:
+                # Relative URL - use frappe's get_file method
+                try:
+                    image_file = frappe.get_doc("File", {"file_url": employee.image})
+                    if image_file.file_url.startswith('/'):
+                        image_path = frappe.get_site_path() + image_file.file_url
+                    else:
+                        image_path = os.path.join(frappe.get_site_path(), 'public', 'files', image_file.file_url)
+                except:
+                    # Fallback: try direct file path construction
+                    if employee.image.startswith('/files/'):
+                        image_path = frappe.get_site_path() + employee.image
+                    else:
+                        image_path = os.path.join(frappe.get_site_path(), 'public', 'files', employee.image)
+            
+            # Check if file exists, if not try alternative paths
+            if not os.path.exists(image_path):
+                # Try different path combinations
+                alt_paths = [
+                    os.path.join(frappe.get_site_path(), 'public', employee.image.lstrip('/')),
+                    os.path.join(frappe.get_site_path(), 'private', 'files', os.path.basename(employee.image)),
+                    os.path.join(frappe.get_site_path(), 'public', 'files', os.path.basename(employee.image))
+                ]
+                
+                for alt_path in alt_paths:
+                    if os.path.exists(alt_path):
+                        image_path = alt_path
+                        break
+                else:
+                    return {
+                        "status": "error",
+                        "message": f"Employee image file not found."
+                    }
+            
             img = Image.open(image_path).convert("RGB")
+            
         except Exception as e:
             return {
                 "status": "error", 
@@ -73,14 +132,14 @@ def upload_face(employee_id, image_base64=None):
     img_np = np.array(img)
 
     # Detect face
-    face_locations = face_recognition.face_locations(img_np)
-    if not face_locations:
+    face_locs = face_locations(img_np)
+    if not face_locs:
         return {
             "status": "error",
             "message": "No face detected in image"
         }
 
-    encodings = face_recognition.face_encodings(img_np, face_locations)
+    encodings = face_encodings(img_np, face_locs)
     if not encodings:
         return {
             "status": "error",
@@ -90,7 +149,7 @@ def upload_face(employee_id, image_base64=None):
     embedding = encodings[0]
 
     # Save embedding to disk
-    filepath = os.path.join(EMBEDDING_DIR, f"{employee_id}.npy")
+    filepath = os.path.join(embedding_dir, f"{employee_id}.npy")
     np.save(filepath, embedding)
 
     return {
@@ -106,11 +165,10 @@ def bulk_enroll_from_employee_images():
     if not FACE_RECOGNITION_AVAILABLE:
         return {
             "status": "error",
-            "message": "Face recognition dependencies not installed. For Frappe Cloud: Please ensure face-recognition, numpy, pillow, and dlib are installed in your Docker environment. Contact support if this persists."
+            "message": "Face recognition dependencies not installed."
         }
     
-    if not os.path.exists(EMBEDDING_DIR):
-        os.makedirs(EMBEDDING_DIR)
+    embedding_dir = get_embedding_directory()
 
     employees_with_images = frappe.db.sql("""
         SELECT name, employee_name, image 
@@ -120,7 +178,7 @@ def bulk_enroll_from_employee_images():
 
     results = []
     for employee in employees_with_images:
-        embedding_file = os.path.join(EMBEDDING_DIR, f"{employee.name}.npy")
+        embedding_file = os.path.join(embedding_dir, f"{employee.name}.npy")
         
         # Skip if embedding already exists
         if os.path.exists(embedding_file):
@@ -151,18 +209,20 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
         }
     
     try:
-        if not os.path.exists(EMBEDDING_DIR):
+        embedding_dir = get_embedding_directory()
+        
+        if not os.path.exists(embedding_dir):
             return {
                 "status": "error",
                 "message": "No employee faces registered in system"
             }
 
-        # Debug: Check embeddings directory
-        embedding_files = [f for f in os.listdir(EMBEDDING_DIR) if f.endswith('.npy')]
+        # Check embeddings directory
+        embedding_files = [f for f in os.listdir(embedding_dir) if f.endswith('.npy')]
         if not embedding_files:
             return {
                 "status": "error",
-                "message": f"No face embeddings found in {EMBEDDING_DIR}. Please register employee faces first."
+                "message": "No face embeddings found. Please register employee faces first."
             }
 
         # Decode base64 image
@@ -174,7 +234,7 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
                 }
             
             image_data = base64.b64decode(image_base64.split(",")[-1])
-            if len(image_data) < 1000:  # Very small image check
+            if len(image_data) < 1000:
                 return {
                     "status": "error", 
                     "message": "Image data appears to be too small or corrupted"
@@ -183,7 +243,7 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
             img = Image.open(BytesIO(image_data)).convert("RGB")
             img_np = np.array(img)
             
-            # Debug: Check image dimensions
+            # Check image dimensions
             if img_np.shape[0] < 100 or img_np.shape[1] < 100:
                 return {
                     "status": "error",
@@ -197,41 +257,44 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
             }
 
         # Detect face in the image
-        face_locations = face_recognition.face_locations(img_np)
-        if not face_locations:
+        face_locs = face_locations(img_np)
+        if not face_locs:
             return {
                 "status": "error",
                 "message": "No face detected in image"
             }
 
         # Get face encoding
-        face_encodings = face_recognition.face_encodings(img_np, face_locations)
-        if not face_encodings:
+        face_encs = face_encodings(img_np, face_locs)
+        if not face_encs:
             return {
                 "status": "error",
                 "message": "Could not extract face features"
             }
 
-        face_encoding = face_encodings[0]
+        face_encoding = face_encs[0]
 
         # Load all known employee faces
         known_encodings = []
         employee_ids = []
         failed_loadings = []
         
-        for filename in os.listdir(EMBEDDING_DIR):
+        for filename in os.listdir(embedding_dir):
             if filename.endswith('.npy'):
                 employee_id = filename[:-4]  # Remove .npy extension
-                filepath = os.path.join(EMBEDDING_DIR, filename)
+                filepath = os.path.join(embedding_dir, filename)
                 
                 try:
                     # Verify employee exists in system
                     if frappe.db.exists("Employee", employee_id):
                         encoding = np.load(filepath)
                         
-                        # Validate encoding shape
-                        if encoding.shape != (128,):
-                            failed_loadings.append(f"{employee_id}: Invalid encoding shape {encoding.shape}")
+                        # Validate encoding shape (ArcFace produces 512-dimensional embeddings)
+                        if encoding.shape != (512,):
+                            if encoding.shape == (128,):
+                                failed_loadings.append(f"{employee_id}: Old face-recognition embedding detected (128-dim). Please re-enroll this employee.")
+                            else:
+                                failed_loadings.append(f"{employee_id}: Invalid encoding shape {encoding.shape}. Expected (512,)")
                             continue
                             
                         known_encodings.append(encoding)
@@ -244,7 +307,10 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
         
         # Log failed loadings for debugging
         if failed_loadings:
-            frappe.log_error(f"Face embedding loading issues: {'; '.join(failed_loadings)}")
+            try:
+                frappe.log_error(f"Face embedding loading issues: {'; '.join(failed_loadings)}")
+            except:
+                pass
 
         if not known_encodings:
             error_msg = "No registered employee faces found"
@@ -257,11 +323,8 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
 
         # Compare face with known faces
         try:
-            matches = face_recognition.compare_faces(known_encodings, face_encoding, tolerance=0.6)
-            face_distances = face_recognition.face_distance(known_encodings, face_encoding)
-            
-            # Debug logging
-            frappe.log_error(f"Face recognition debug: Found {len(known_encodings)} encodings, matches: {matches}, distances: {face_distances}")
+            matches = compare_faces(known_encodings, face_encoding, tolerance=0.6)
+            face_distances = face_distance(known_encodings, face_encoding)
             
         except Exception as compare_error:
             return {
@@ -318,13 +381,15 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        frappe.log_error(f"Face recognition error: {str(e)}\n\nFull traceback:\n{error_details}")
         
-        # Return more detailed error for debugging
+        try:
+            frappe.log_error(f"Face recognition error: {str(e)}\n\nFull traceback:\n{error_details}")
+        except:
+            pass
+        
         return {
             "status": "error",
-            "message": f"System error during face recognition: {str(e)}",
-            "debug_info": error_details if frappe.conf.get('developer_mode') else None
+            "message": f"System error during face recognition: {str(e)}"
         }
 
 def determine_log_type(employee_id):
@@ -401,87 +466,19 @@ def get_projects():
                 "message": "Project doctype not found. Please ensure ERPNext is properly installed."
             }
         
-        # Try different approaches to get projects
-        projects = []
+        projects = frappe.get_all(
+            "Project",
+            filters={
+                "is_active": "Yes"
+            },
+            fields=["name", "project_name", "status"],
+            order_by="name asc"
+        )
         
-        # Method 1: Try to get projects with "Open" status
-        try:
-            projects = frappe.get_all(
-                "Project",
-                filters={
-                    "status": "Open",
-                    "is_active": "Yes"
-                },
-                fields=["name", "project_name", "status"],
-                order_by="name asc"
-            )
-            
-            # Ensure project_name field exists, use name if empty
-            for project in projects:
-                if not project.get("project_name"):
-                    project["project_name"] = project["name"]
-        except Exception as e:
-            frappe.log_error(f"Method 1 failed: {str(e)}")
-        
-        # Method 2: If no projects found, try different status values
-        if not projects:
-            try:
-                projects = frappe.db.sql("""
-                    SELECT name, 
-                           COALESCE(NULLIF(project_name, ''), name) as project_name, 
-                           status
-                    FROM `tabProject` 
-                    WHERE (is_active = 'Yes' OR is_active IS NULL)
-                    AND (status = 'Open' OR status = 'Completed' OR status = 'Template' OR status IS NULL)
-                    ORDER BY 
-                        CASE 
-                            WHEN status = 'Open' THEN 1
-                            WHEN status = 'Completed' THEN 2
-                            WHEN status = 'Template' THEN 3
-                            ELSE 4
-                        END,
-                        name ASC
-                    LIMIT 100
-                """, as_dict=True)
-            except Exception as e:
-                frappe.log_error(f"Method 2 failed: {str(e)}")
-        
-        # Method 3: If still no projects, get all active projects
-        if not projects:
-            try:
-                projects = frappe.get_all(
-                    "Project",
-                    filters={
-                        "is_active": "Yes"
-                    },
-                    fields=["name", "project_name", "status"],
-                    order_by="creation desc",
-                    limit=50
-                )
-                
-                # Ensure project_name field exists, use name if empty
-                for project in projects:
-                    if not project.get("project_name"):
-                        project["project_name"] = project["name"]
-            except Exception as e:
-                frappe.log_error(f"Method 3 failed: {str(e)}")
-        
-        # Method 4: If still no projects, get all projects (no filters)
-        if not projects:
-            try:
-                projects = frappe.get_all(
-                    "Project",
-                    fields=["name", "project_name", "status"],
-                    order_by="creation desc",
-                    limit=50
-                )
-                
-                # Ensure project_name field exists, use name if empty
-                for project in projects:
-                    if not project.get("project_name"):
-                        project["project_name"] = project["name"]
-            except Exception as e:
-                frappe.log_error(f"Method 4 failed: {str(e)}")
+        # Ensure project_name field exists, use name if empty
+        for project in projects:
+            if not project.get("project_name"):
+                project["project_name"] = project["name"]
         
         if not projects:
             return {
@@ -495,79 +492,23 @@ def get_projects():
         }
         
     except Exception as e:
-        frappe.log_error(f"Error fetching projects: {str(e)}")
+        try:
+            frappe.log_error(f"Error fetching projects: {str(e)}")
+        except:
+            pass
         return {
             "status": "error",
             "message": f"Failed to fetch projects: {str(e)}"
         }
 
 @frappe.whitelist()
-def check_system_status():
-    """
-    Check system dependencies and status
-    """
-    # Check if we're in a Docker environment
-    is_docker = os.path.exists('/.dockerenv') or os.path.exists('/proc/1/cgroup')
-    
-    # Get more detailed dependency info
-    dependency_status = {}
-    try:
-        import face_recognition
-        dependency_status['face_recognition'] = face_recognition.__version__
-    except ImportError:
-        dependency_status['face_recognition'] = 'Not installed'
-    
-    try:
-        import cv2
-        dependency_status['opencv'] = cv2.__version__
-    except ImportError:
-        dependency_status['opencv'] = 'Not installed'
-    
-    try:
-        import numpy
-        dependency_status['numpy'] = numpy.__version__
-    except ImportError:
-        dependency_status['numpy'] = 'Not installed'
-    
-    try:
-        import PIL
-        dependency_status['pillow'] = PIL.__version__
-    except ImportError:
-        dependency_status['pillow'] = 'Not installed'
-    
-    # Check embedding directory and provide alternatives
-    embedding_dirs = []
-    if os.path.exists(EMBEDDING_DIR):
-        embedding_dirs.append(EMBEDDING_DIR)
-    
-    # Check fallback directories
-    fallback_dir = os.path.join(frappe.get_site_path(), 'private', 'files', 'face_embeddings')
-    if os.path.exists(fallback_dir):
-        embedding_dirs.append(fallback_dir)
-    
-    return {
-        "face_recognition_available": FACE_RECOGNITION_AVAILABLE,
-        "is_docker_environment": is_docker,
-        "embedding_directory_exists": os.path.exists(EMBEDDING_DIR),
-        "embedding_directory_path": EMBEDDING_DIR,
-        "available_embedding_directories": embedding_dirs,
-        "dependency_versions": dependency_status,
-        "user": frappe.session.user,
-        "user_roles": frappe.get_roles(),
-        "setup_suggestions": {
-            "for_frappe_cloud": "Install dependencies using: pip install -r apps/face_checkin/frappe_cloud_requirements.txt",
-            "for_docker": "Ensure face recognition dependencies are in your Dockerfile",
-            "embedding_storage": f"Face embeddings stored in: {EMBEDDING_DIR}"
-        }
-    }
-
-@frappe.whitelist()
 def check_enrollment_status(employee_ids=None):
     """
     Check face enrollment status for employees
-    Returns status for specific employees or all employees with images
     """
-    if not os.path.exists(EMBEDDING_DIR):
+    embedding_dir = get_embedding_directory()
+    
+    if not os.path.exists(embedding_dir):
         return {
             "status": "error",
             "message": "Face embeddings directory not found"
@@ -576,7 +517,7 @@ def check_enrollment_status(employee_ids=None):
     try:
         # Get list of existing embedding files
         existing_embeddings = set()
-        for filename in os.listdir(EMBEDDING_DIR):
+        for filename in os.listdir(embedding_dir):
             if filename.endswith('.npy'):
                 employee_id = filename[:-4]  # Remove .npy extension
                 existing_embeddings.add(employee_id)
@@ -644,61 +585,14 @@ def check_enrollment_status(employee_ids=None):
         }
         
     except Exception as e:
-        frappe.log_error(f"Error checking enrollment status: {str(e)}")
+        try:
+            frappe.log_error(f"Error checking enrollment status: {str(e)}")
+        except:
+            pass
         return {
             "status": "error",
             "message": f"Failed to check enrollment status: {str(e)}"
         }
-
-@frappe.whitelist()
-def debug_project_status():
-    """
-    Debug endpoint to help troubleshoot project loading issues
-    Only available to System Manager role
-    """
-    if "System Manager" not in frappe.get_roles():
-        return {"error": "Access denied. System Manager role required."}
-    
-    try:
-        debug_info = {
-            "user": frappe.session.user,
-            "roles": frappe.get_roles(),
-            "project_doctype_exists": frappe.db.exists("DocType", "Project"),
-            "project_count": 0,
-            "sample_projects": [],
-            "error_details": []
-        }
-        
-        if debug_info["project_doctype_exists"]:
-            # Count total projects
-            try:
-                debug_info["project_count"] = frappe.db.count("Project")
-            except Exception as e:
-                debug_info["error_details"].append(f"Count error: {str(e)}")
-            
-            # Get sample projects with all details
-            try:
-                sample_projects = frappe.db.sql("""
-                    SELECT name, project_name, status, is_active, creation
-                    FROM `tabProject`
-                    ORDER BY creation DESC
-                    LIMIT 5
-                """, as_dict=True)
-                debug_info["sample_projects"] = sample_projects
-            except Exception as e:
-                debug_info["error_details"].append(f"Sample query error: {str(e)}")
-                
-            # Test project permissions
-            try:
-                debug_info["can_read_project"] = frappe.has_permission("Project", "read")
-            except Exception as e:
-                debug_info["error_details"].append(f"Permission error: {str(e)}")
-        
-        return debug_info
-        
-    except Exception as e:
-        return {"error": str(e)}
-
 
 @frappe.whitelist()
 def upload_employee_image(employee_id, image_base64, filename="employee_photo.jpg"):
@@ -751,7 +645,10 @@ def upload_employee_image(employee_id, image_base64, filename="employee_photo.jp
         }
 
     except Exception as e:
-        frappe.log_error(f"Error uploading employee image: {str(e)}")
+        try:
+            frappe.log_error(f"Error uploading employee image: {str(e)}")
+        except:
+            pass
         return {
             "status": "error",
             "message": f"Failed to upload image: {str(e)}"
