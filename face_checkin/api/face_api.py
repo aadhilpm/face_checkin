@@ -149,10 +149,44 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
                 "message": "No employee faces registered in system"
             }
 
+        # Debug: Check embeddings directory
+        embedding_files = [f for f in os.listdir(EMBEDDING_DIR) if f.endswith('.npy')]
+        if not embedding_files:
+            return {
+                "status": "error",
+                "message": f"No face embeddings found in {EMBEDDING_DIR}. Please register employee faces first."
+            }
+
         # Decode base64 image
-        image_data = base64.b64decode(image_base64.split(",")[-1])
-        img = Image.open(BytesIO(image_data)).convert("RGB")
-        img_np = np.array(img)
+        try:
+            if not image_base64 or len(image_base64) < 50:
+                return {
+                    "status": "error",
+                    "message": "Invalid or empty image data received"
+                }
+            
+            image_data = base64.b64decode(image_base64.split(",")[-1])
+            if len(image_data) < 1000:  # Very small image check
+                return {
+                    "status": "error", 
+                    "message": "Image data appears to be too small or corrupted"
+                }
+            
+            img = Image.open(BytesIO(image_data)).convert("RGB")
+            img_np = np.array(img)
+            
+            # Debug: Check image dimensions
+            if img_np.shape[0] < 100 or img_np.shape[1] < 100:
+                return {
+                    "status": "error",
+                    "message": f"Image too small for face detection: {img_np.shape[1]}x{img_np.shape[0]}"
+                }
+                
+        except Exception as img_error:
+            return {
+                "status": "error",
+                "message": f"Failed to process image: {str(img_error)}"
+            }
 
         # Detect face in the image
         face_locations = face_recognition.face_locations(img_np)
@@ -175,27 +209,57 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
         # Load all known employee faces
         known_encodings = []
         employee_ids = []
+        failed_loadings = []
         
         for filename in os.listdir(EMBEDDING_DIR):
             if filename.endswith('.npy'):
                 employee_id = filename[:-4]  # Remove .npy extension
                 filepath = os.path.join(EMBEDDING_DIR, filename)
                 
-                # Verify employee exists in system
-                if frappe.db.exists("Employee", employee_id):
-                    encoding = np.load(filepath)
-                    known_encodings.append(encoding)
-                    employee_ids.append(employee_id)
+                try:
+                    # Verify employee exists in system
+                    if frappe.db.exists("Employee", employee_id):
+                        encoding = np.load(filepath)
+                        
+                        # Validate encoding shape
+                        if encoding.shape != (128,):
+                            failed_loadings.append(f"{employee_id}: Invalid encoding shape {encoding.shape}")
+                            continue
+                            
+                        known_encodings.append(encoding)
+                        employee_ids.append(employee_id)
+                    else:
+                        failed_loadings.append(f"{employee_id}: Employee not found in database")
+                        
+                except Exception as load_error:
+                    failed_loadings.append(f"{employee_id}: {str(load_error)}")
+        
+        # Log failed loadings for debugging
+        if failed_loadings:
+            frappe.log_error(f"Face embedding loading issues: {'; '.join(failed_loadings)}")
 
         if not known_encodings:
+            error_msg = "No registered employee faces found"
+            if failed_loadings:
+                error_msg += f". Issues with {len(failed_loadings)} face files - check logs for details."
             return {
                 "status": "error",
-                "message": "No registered employee faces found"
+                "message": error_msg
             }
 
         # Compare face with known faces
-        matches = face_recognition.compare_faces(known_encodings, face_encoding, tolerance=0.6)
-        face_distances = face_recognition.face_distance(known_encodings, face_encoding)
+        try:
+            matches = face_recognition.compare_faces(known_encodings, face_encoding, tolerance=0.6)
+            face_distances = face_recognition.face_distance(known_encodings, face_encoding)
+            
+            # Debug logging
+            frappe.log_error(f"Face recognition debug: Found {len(known_encodings)} encodings, matches: {matches}, distances: {face_distances}")
+            
+        except Exception as compare_error:
+            return {
+                "status": "error",
+                "message": f"Face comparison failed: {str(compare_error)}"
+            }
 
         if not any(matches):
             return {
@@ -244,10 +308,15 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
             }
             
     except Exception as e:
-        frappe.log_error(f"Face recognition error: {str(e)}")
+        import traceback
+        error_details = traceback.format_exc()
+        frappe.log_error(f"Face recognition error: {str(e)}\n\nFull traceback:\n{error_details}")
+        
+        # Return more detailed error for debugging
         return {
             "status": "error",
-            "message": "System error during face recognition"
+            "message": f"System error during face recognition: {str(e)}",
+            "debug_info": error_details if frappe.conf.get('developer_mode') else None
         }
 
 def determine_log_type(employee_id):
