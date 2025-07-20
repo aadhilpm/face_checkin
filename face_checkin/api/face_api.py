@@ -333,7 +333,7 @@ def get_projects():
                 "Project",
                 filters={
                     "status": "Open",
-                    "disabled": 0
+                    "is_active": "Yes"
                 },
                 fields=["name", "project_name", "status"],
                 order_by="name asc"
@@ -354,7 +354,7 @@ def get_projects():
                            COALESCE(NULLIF(project_name, ''), name) as project_name, 
                            status
                     FROM `tabProject` 
-                    WHERE (disabled = 0 OR disabled IS NULL)
+                    WHERE (is_active = 'Yes' OR is_active IS NULL)
                     AND (status = 'Open' OR status = 'Completed' OR status = 'Template' OR status IS NULL)
                     ORDER BY 
                         CASE 
@@ -369,13 +369,13 @@ def get_projects():
             except Exception as e:
                 frappe.log_error(f"Method 2 failed: {str(e)}")
         
-        # Method 3: If still no projects, get all non-disabled projects
+        # Method 3: If still no projects, get all active projects
         if not projects:
             try:
                 projects = frappe.get_all(
                     "Project",
                     filters={
-                        "disabled": 0
+                        "is_active": "Yes"
                     },
                     fields=["name", "project_name", "status"],
                     order_by="creation desc",
@@ -388,6 +388,23 @@ def get_projects():
                         project["project_name"] = project["name"]
             except Exception as e:
                 frappe.log_error(f"Method 3 failed: {str(e)}")
+        
+        # Method 4: If still no projects, get all projects (no filters)
+        if not projects:
+            try:
+                projects = frappe.get_all(
+                    "Project",
+                    fields=["name", "project_name", "status"],
+                    order_by="creation desc",
+                    limit=50
+                )
+                
+                # Ensure project_name field exists, use name if empty
+                for project in projects:
+                    if not project.get("project_name"):
+                        project["project_name"] = project["name"]
+            except Exception as e:
+                frappe.log_error(f"Method 4 failed: {str(e)}")
         
         if not projects:
             return {
@@ -449,7 +466,7 @@ def debug_project_status():
             # Get sample projects with all details
             try:
                 sample_projects = frappe.db.sql("""
-                    SELECT name, project_name, status, disabled, creation
+                    SELECT name, project_name, status, is_active, creation
                     FROM `tabProject`
                     ORDER BY creation DESC
                     LIMIT 5
