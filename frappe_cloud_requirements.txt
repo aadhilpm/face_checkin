@@ -1,0 +1,24 @@
+# Face Recognition Dependencies for Frappe Cloud Docker Environment
+# Optimized for stability and compatibility in containerized environments
+
+# Build tools (install first)
+cmake==3.27.0
+
+# Core face recognition libraries with stable versions
+dlib==19.24.0
+face-recognition==1.3.0
+
+# Numerical computing (compatible versions)
+numpy==1.24.3
+
+# Computer vision
+opencv-python-headless==4.8.1.78
+
+# Image processing
+Pillow==10.0.0
+scikit-image==0.21.0
+imutils==0.5.4
+
+# Optional: Performance improvements for production
+redis==4.6.0
+gunicorn==21.2.0

@@ -20,7 +20,15 @@ except ImportError as e:
     np = DummyModule()
     Image = DummyModule()
 
-EMBEDDING_DIR = frappe.get_app_path('face_checkin', 'face_store', 'embeddings')
+# Use a more reliable path for Docker/Frappe Cloud environments
+try:
+    # Try the standard app path first
+    EMBEDDING_DIR = frappe.get_app_path('face_checkin', 'face_store', 'embeddings')
+except Exception:
+    # Fallback for Docker environments where app path might not resolve correctly
+    EMBEDDING_DIR = os.path.join(frappe.get_site_path(), 'private', 'files', 'face_embeddings')
+    if not os.path.exists(EMBEDDING_DIR):
+        os.makedirs(EMBEDDING_DIR, exist_ok=True)
 
 @frappe.whitelist()
 def upload_face(employee_id, image_base64=None):
@@ -31,7 +39,7 @@ def upload_face(employee_id, image_base64=None):
     if not FACE_RECOGNITION_AVAILABLE:
         return {
             "status": "error",
-            "message": "Face recognition dependencies not installed. Please install face-recognition, numpy, and pillow packages."
+            "message": "Face recognition dependencies not installed. For Frappe Cloud: Please ensure face-recognition, numpy, pillow, and dlib are installed in your Docker environment. Contact support if this persists."
         }
     
     if not os.path.exists(EMBEDDING_DIR):
@@ -98,7 +106,7 @@ def bulk_enroll_from_employee_images():
     if not FACE_RECOGNITION_AVAILABLE:
         return {
             "status": "error",
-            "message": "Face recognition dependencies not installed. Please install required packages first."
+            "message": "Face recognition dependencies not installed. For Frappe Cloud: Please ensure face-recognition, numpy, pillow, and dlib are installed in your Docker environment. Contact support if this persists."
         }
     
     if not os.path.exists(EMBEDDING_DIR):
@@ -498,12 +506,59 @@ def check_system_status():
     """
     Check system dependencies and status
     """
+    # Check if we're in a Docker environment
+    is_docker = os.path.exists('/.dockerenv') or os.path.exists('/proc/1/cgroup')
+    
+    # Get more detailed dependency info
+    dependency_status = {}
+    try:
+        import face_recognition
+        dependency_status['face_recognition'] = face_recognition.__version__
+    except ImportError:
+        dependency_status['face_recognition'] = 'Not installed'
+    
+    try:
+        import cv2
+        dependency_status['opencv'] = cv2.__version__
+    except ImportError:
+        dependency_status['opencv'] = 'Not installed'
+    
+    try:
+        import numpy
+        dependency_status['numpy'] = numpy.__version__
+    except ImportError:
+        dependency_status['numpy'] = 'Not installed'
+    
+    try:
+        import PIL
+        dependency_status['pillow'] = PIL.__version__
+    except ImportError:
+        dependency_status['pillow'] = 'Not installed'
+    
+    # Check embedding directory and provide alternatives
+    embedding_dirs = []
+    if os.path.exists(EMBEDDING_DIR):
+        embedding_dirs.append(EMBEDDING_DIR)
+    
+    # Check fallback directories
+    fallback_dir = os.path.join(frappe.get_site_path(), 'private', 'files', 'face_embeddings')
+    if os.path.exists(fallback_dir):
+        embedding_dirs.append(fallback_dir)
+    
     return {
         "face_recognition_available": FACE_RECOGNITION_AVAILABLE,
+        "is_docker_environment": is_docker,
         "embedding_directory_exists": os.path.exists(EMBEDDING_DIR),
         "embedding_directory_path": EMBEDDING_DIR,
+        "available_embedding_directories": embedding_dirs,
+        "dependency_versions": dependency_status,
         "user": frappe.session.user,
-        "user_roles": frappe.get_roles()
+        "user_roles": frappe.get_roles(),
+        "setup_suggestions": {
+            "for_frappe_cloud": "Install dependencies using: pip install -r apps/face_checkin/frappe_cloud_requirements.txt",
+            "for_docker": "Ensure face recognition dependencies are in your Dockerfile",
+            "embedding_storage": f"Face embeddings stored in: {EMBEDDING_DIR}"
+        }
     }
 
 @frappe.whitelist()
