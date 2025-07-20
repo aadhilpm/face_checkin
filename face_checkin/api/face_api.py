@@ -617,6 +617,15 @@ def check_enrollment_status(employee_ids=None):
                 "enrollment_complete": has_face_data
             }
             
+            # Debug logging
+            debug_info["employee_checks"] = debug_info.get("employee_checks", [])
+            debug_info["employee_checks"].append({
+                "employee_id": employee.name,
+                "employee_name": employee.employee_name,
+                "has_face_data": has_face_data,
+                "in_existing_embeddings": employee.name in existing_embeddings
+            })
+            
             if has_face_data:
                 enrollment_summary["employees_enrolled"] += 1
             else:

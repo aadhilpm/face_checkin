@@ -710,19 +710,13 @@
 
             // Add enhanced summary
             const withImages = employees.filter(emp => emp.image && emp.image.trim() !== '').length;
-            const enrolled = enrollmentSummary ? enrollmentSummary.employees_enrolled : 0;
-            const pending = enrollmentSummary ? enrollmentSummary.employees_pending : 0;
             
             const summary = document.createElement('div');
             summary.className = 'info-box';
             summary.style.marginBottom = '1.5rem';
             summary.innerHTML = `
                 <i class="fas fa-chart-pie" style="color: #60a5fa; margin-right: 0.5rem;"></i>
-                <strong>Summary:</strong> ${employees.length} total employees, ${withImages} with images (${Math.round(withImages/employees.length*100)}%)<br>
-                <small style="margin-top: 0.5rem; display: block;">
-                    <span style="color: #34d399;">✓ ${enrolled} enrolled</span> · 
-                    <span style="color: #f87171;">⚠ ${pending} pending face data</span>
-                </small>
+                <strong>Summary:</strong> ${employees.length} total employees, ${withImages} with images (${Math.round(withImages/employees.length*100)}%)
             `;
             container.insertBefore(summary, grid);
         }
