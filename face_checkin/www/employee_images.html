@@ -577,19 +577,41 @@
                 container.innerHTML = `
                     <div style="text-align: center; padding: 2rem;">
                         <div class="loading"></div>
-                        <p style="margin-top: 1rem;">Loading employees...</p>
+                        <p style="margin-top: 1rem;">Loading employees and enrollment status...</p>
                     </div>
                 `;
 
-                const response = await fetch('/api/resource/Employee?fields=["name","employee_name","image"]&limit_page_length=100', {
-                    headers: {
-                        'X-Frappe-CSRF-Token': frappe.csrf_token
-                    }
-                });
-                const data = await response.json();
+                // Load employees and enrollment status in parallel
+                const [employeeResponse, enrollmentResponse] = await Promise.all([
+                    fetch('/api/resource/Employee?fields=["name","employee_name","image"]&limit_page_length=100', {
+                        headers: {
+                            'X-Frappe-CSRF-Token': frappe.csrf_token
+                        }
+                    }),
+                    fetch('/api/method/face_checkin.api.face_api.check_enrollment_status', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Frappe-CSRF-Token': frappe.csrf_token
+                        }
+                    })
+                ]);
 
-                if (data.data && data.data.length > 0) {
-                    displayEmployees(data.data);
+                const employeeData = await employeeResponse.json();
+                const enrollmentData = await enrollmentResponse.json();
+
+                if (employeeData.data && employeeData.data.length > 0) {
+                    // Merge enrollment status with employee data
+                    const enrollmentDetails = enrollmentData.message?.enrollment_summary?.details || {};
+                    const employeesWithStatus = employeeData.data.map(emp => ({
+                        ...emp,
+                        enrollment_status: enrollmentDetails[emp.name] || {
+                            has_image: !!emp.image,
+                            has_face_data: false,
+                            enrollment_complete: false
+                        }
+                    }));
+                    displayEmployees(employeesWithStatus, enrollmentData.message?.enrollment_summary);
                 } else {
                     container.innerHTML = `
                         <div style="text-align: center; padding: 2rem; color: #6b7280;">
@@ -609,7 +631,7 @@
             }
         }
 
-        function displayEmployees(employees) {
+        function displayEmployees(employees, enrollmentSummary) {
             const container = document.getElementById('employeeContainer');
             
             if (employees.length === 0) {
@@ -630,7 +652,9 @@
                 card.className = 'employee-card';
 
                 const hasImage = employee.image && employee.image.trim() !== '';
-                const enrollmentStatus = checkEnrollmentStatus(employee.name);
+                const enrollmentStatus = employee.enrollment_status || {};
+                const hasFaceData = enrollmentStatus.has_face_data;
+                const enrollmentComplete = enrollmentStatus.enrollment_complete;
 
                 card.innerHTML = `
                     ${hasImage 
@@ -644,6 +668,11 @@
                         <span class="status-badge ${hasImage ? 'status-has-image' : 'status-no-image'}">
                             ${hasImage ? 'Has Image' : 'No Image'}
                         </span>
+                        ${hasImage ? `
+                            <span class="status-badge ${enrollmentComplete ? 'status-enrolled' : 'status-no-image'}" style="margin-top: 0.5rem; display: block;">
+                                ${enrollmentComplete ? '✓ Face Data Ready' : '⚠ Face Data Pending'}
+                            </span>
+                        ` : ''}
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                         <a href="/app/employee/${employee.name}" class="btn" target="_blank" style="justify-content: center; margin: 0;">
@@ -651,9 +680,9 @@
                             Edit Employee
                         </a>
                         ${hasImage ? `
-                            <button class="btn btn-success" onclick="enrollEmployee('${employee.name}')" style="justify-content: center; margin: 0;">
+                            <button class="btn ${enrollmentComplete ? '' : 'btn-success'}" onclick="enrollEmployee('${employee.name}')" style="justify-content: center; margin: 0; ${enrollmentComplete ? 'background: rgba(75, 85, 99, 0.5);' : ''}">
                                 <i class="fas fa-robot"></i>
-                                Create Face Data
+                                ${enrollmentComplete ? 'Recreate Face Data' : 'Create Face Data'}
                             </button>
                         ` : `
                             <button class="btn" onclick="uploadImage('${employee.name}')" style="justify-content: center; margin: 0; background: linear-gradient(135deg, #f59e0b, #d97706);">
@@ -670,22 +699,25 @@
             container.innerHTML = '';
             container.appendChild(grid);
 
-            // Add summary
+            // Add enhanced summary
             const withImages = employees.filter(emp => emp.image && emp.image.trim() !== '').length;
+            const enrolled = enrollmentSummary ? enrollmentSummary.employees_enrolled : 0;
+            const pending = enrollmentSummary ? enrollmentSummary.employees_pending : 0;
+            
             const summary = document.createElement('div');
             summary.className = 'info-box';
             summary.style.marginBottom = '1.5rem';
             summary.innerHTML = `
                 <i class="fas fa-chart-pie" style="color: #60a5fa; margin-right: 0.5rem;"></i>
-                <strong>Summary:</strong> ${employees.length} total employees, ${withImages} with images (${Math.round(withImages/employees.length*100)}%)
+                <strong>Summary:</strong> ${employees.length} total employees, ${withImages} with images (${Math.round(withImages/employees.length*100)}%)<br>
+                <small style="margin-top: 0.5rem; display: block;">
+                    <span style="color: #34d399;">✓ ${enrolled} enrolled</span> · 
+                    <span style="color: #f87171;">⚠ ${pending} pending face data</span>
+                </small>
             `;
             container.insertBefore(summary, grid);
         }
 
-        function checkEnrollmentStatus(employeeId) {
-            // This would check if face embedding exists
-            return 'unknown';
-        }
 
         async function enrollEmployee(employeeId) {
             try {
@@ -706,6 +738,8 @@
 
                 if (data.message && data.message.status === 'success') {
                     showStatus('success', `<i class="fas fa-check-circle"></i> ${data.message.message}`);
+                    // Refresh employee list to show updated status
+                    setTimeout(() => loadEmployees(), 1000);
                 } else {
                     showStatus('error', `<i class="fas fa-exclamation-circle"></i> ${data.message ? data.message.message : 'Failed to create face data'}`);
                 }
@@ -733,6 +767,8 @@
                     showStatus('success', `<i class="fas fa-check-circle"></i> ${data.message.message}<br>
                         <small>Check browser console for detailed results.</small>`);
                     console.log('Bulk enrollment results:', data.message.details);
+                    // Refresh employee list to show updated status
+                    setTimeout(() => loadEmployees(), 2000);
                 } else {
                     showStatus('error', `<i class="fas fa-exclamation-circle"></i> ${data.message ? data.message.message : 'Bulk enrollment failed'}`);
                 }

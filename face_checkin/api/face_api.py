@@ -438,6 +438,95 @@ def check_system_status():
     }
 
 @frappe.whitelist()
+def check_enrollment_status(employee_ids=None):
+    """
+    Check face enrollment status for employees
+    Returns status for specific employees or all employees with images
+    """
+    if not os.path.exists(EMBEDDING_DIR):
+        return {
+            "status": "error",
+            "message": "Face embeddings directory not found"
+        }
+    
+    try:
+        # Get list of existing embedding files
+        existing_embeddings = set()
+        for filename in os.listdir(EMBEDDING_DIR):
+            if filename.endswith('.npy'):
+                employee_id = filename[:-4]  # Remove .npy extension
+                existing_embeddings.add(employee_id)
+        
+        # If specific employee IDs provided, check only those
+        if employee_ids:
+            if isinstance(employee_ids, str):
+                employee_ids = [employee_ids]
+            
+            results = {}
+            for emp_id in employee_ids:
+                # Verify employee exists in system
+                if frappe.db.exists("Employee", emp_id):
+                    employee = frappe.get_doc("Employee", emp_id)
+                    has_image = bool(employee.image and employee.image.strip())
+                    has_face_data = emp_id in existing_embeddings
+                    
+                    results[emp_id] = {
+                        "employee_name": employee.employee_name,
+                        "has_image": has_image,
+                        "has_face_data": has_face_data,
+                        "enrollment_complete": has_image and has_face_data
+                    }
+                else:
+                    results[emp_id] = {
+                        "error": "Employee not found"
+                    }
+            
+            return {
+                "status": "success",
+                "enrollment_status": results
+            }
+        
+        # Return status for all employees with images
+        employees_with_images = frappe.db.sql("""
+            SELECT name, employee_name, image 
+            FROM `tabEmployee` 
+            WHERE image IS NOT NULL AND image != ''
+        """, as_dict=True)
+        
+        enrollment_summary = {
+            "total_employees_with_images": len(employees_with_images),
+            "employees_enrolled": 0,
+            "employees_pending": 0,
+            "details": {}
+        }
+        
+        for employee in employees_with_images:
+            has_face_data = employee.name in existing_embeddings
+            enrollment_summary["details"][employee.name] = {
+                "employee_name": employee.employee_name,
+                "has_image": True,
+                "has_face_data": has_face_data,
+                "enrollment_complete": has_face_data
+            }
+            
+            if has_face_data:
+                enrollment_summary["employees_enrolled"] += 1
+            else:
+                enrollment_summary["employees_pending"] += 1
+        
+        return {
+            "status": "success",
+            "enrollment_summary": enrollment_summary
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error checking enrollment status: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to check enrollment status: {str(e)}"
+        }
+
+@frappe.whitelist()
 def debug_project_status():
     """
     Debug endpoint to help troubleshoot project loading issues
