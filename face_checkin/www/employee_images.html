@@ -477,6 +477,10 @@
                     <i class="fas fa-robot"></i>
                     Bulk Enroll All
                 </button>
+                <button class="btn" onclick="testEnrollmentStatus()" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <i class="fas fa-bug"></i>
+                    Debug Status
+                </button>
             </div>
 
             <div id="employeeContainer">
@@ -599,6 +603,11 @@
 
                 const employeeData = await employeeResponse.json();
                 const enrollmentData = await enrollmentResponse.json();
+
+                // Debug logging
+                console.log('Employee Data:', employeeData);
+                console.log('Enrollment Data:', enrollmentData);
+                console.log('Debug Info:', enrollmentData.message?.debug);
 
                 if (employeeData.data && employeeData.data.length > 0) {
                     // Merge enrollment status with employee data
@@ -774,6 +783,38 @@
                 }
             } catch (error) {
                 console.error('Bulk enrollment error:', error);
+                showStatus('error', `<i class="fas fa-exclamation-triangle"></i> Error: ${error.message}`);
+            }
+        }
+
+        async function testEnrollmentStatus() {
+            try {
+                showStatus('info', `<i class="fas fa-spinner fa-spin"></i> Running enrollment status debug test...`);
+
+                const response = await fetch('/api/method/face_checkin.api.face_api.test_enrollment_status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                    }
+                });
+
+                const data = await response.json();
+                console.log('Debug Test Result:', data);
+
+                if (data.message && data.message.status === 'success') {
+                    showStatus('success', `
+                        <i class="fas fa-check-circle"></i> Debug test completed successfully!<br>
+                        <small>Embedding directory: ${data.message.test_result.embedding_dir}</small><br>
+                        <small>Files found: ${data.message.test_result.files.length}</small><br>
+                        <small>Employees with images: ${data.message.test_result.employees_with_images}</small><br>
+                        <small>Check browser console for full results.</small>
+                    `);
+                } else {
+                    showStatus('error', `<i class="fas fa-exclamation-circle"></i> Debug test failed: ${data.message ? data.message.message : 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Debug test error:', error);
                 showStatus('error', `<i class="fas fa-exclamation-triangle"></i> Error: ${error.message}`);
             }
         }

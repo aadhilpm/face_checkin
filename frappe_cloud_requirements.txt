@@ -1,21 +1,14 @@
 # Face Recognition Dependencies for Frappe Cloud Docker Environment
-# Optimized for stability and compatibility in containerized environments
+# Optimized for simple OpenCV-based face recognition
 
-# Core face recognition libraries with stable versions
-mediapipe==0.10.8
-onnxruntime==1.16.3
+# Numerical computing
+numpy>=1.21.0,<2.0.0
 
-# Numerical computing (compatible versions)
-numpy==1.24.3
-
-# Computer vision
-opencv-python-headless==4.8.1.78
+# Computer vision (headless version for Docker)
+opencv-python-headless>=4.5.0,<5.0.0
 
 # Image processing
-Pillow==10.0.0
-scikit-image==0.21.0
-imutils==0.5.4
+Pillow>=8.3.0,<11.0.0
 
-# Optional: Performance improvements for production
-redis==4.6.0
-gunicorn==21.2.0
+# Production optimizations
+gunicorn>=20.1.0,<22.0.0

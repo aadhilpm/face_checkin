@@ -11,12 +11,9 @@ import subprocess
 def check_dependencies():
     """Check if required packages are installed"""
     required_packages = [
-        'face_recognition',
-        'dlib', 
         'numpy',
-        'opencv-python',
-        'Pillow',
-        'scikit-image'
+        'cv2',
+        'PIL'
     ]
     
     missing_packages = []
@@ -39,17 +36,13 @@ def install_dependencies():
     commands = [
         # System dependencies (if needed)
         "apt-get update",
-        "apt-get install -y build-essential cmake libopenblas-dev liblapack-dev",
+        "apt-get install -y libopencv-dev libgl1-mesa-glx libglib2.0-0",
         
         # Python packages
         "pip install --upgrade pip",
-        "pip install cmake",
-        "pip install dlib==19.24.0",
-        "pip install face-recognition==1.3.0",
-        "pip install opencv-python==4.8.1.78",
-        "pip install Pillow==10.0.0",
-        "pip install scikit-image==0.21.0",
-        "pip install imutils==0.5.4"
+        "pip install numpy>=1.21.0,<2.0.0",
+        "pip install opencv-python-headless>=4.5.0,<5.0.0",
+        "pip install Pillow>=8.3.0,<11.0.0"
     ]
     
     for cmd in commands:
@@ -101,22 +94,15 @@ def setup_directories():
 def create_requirements_for_cloud():
     """Create a requirements.txt file optimized for Frappe Cloud"""
     requirements_content = """# Face Recognition Dependencies for Frappe Cloud Docker
-# Optimized versions for better compatibility
+# Simple OpenCV-based implementation
 
-# Core dependencies with specific versions
-cmake==3.27.0
-dlib==19.24.0
-face-recognition==1.3.0
-numpy==1.24.3
-opencv-python==4.8.1.78
-Pillow==10.0.0
+# Core dependencies
+numpy>=1.21.0,<2.0.0
+opencv-python-headless>=4.5.0,<5.0.0
+Pillow>=8.3.0,<11.0.0
 
-# Image processing
-scikit-image==0.21.0
-imutils==0.5.4
-
-# Optional performance improvements
-redis==4.6.0
+# Production optimizations
+gunicorn>=20.1.0,<22.0.0
 """
     
     with open('/tmp/face_checkin_requirements.txt', 'w') as f:
@@ -131,16 +117,16 @@ def verify_installation():
     print("Verifying face recognition installation...")
     
     try:
-        import face_recognition
         import cv2
         import numpy as np
         from PIL import Image
         
-        print("✓ All face recognition modules imported successfully")
+        print("✓ All required modules imported successfully")
         
         # Test basic functionality
         test_image = np.zeros((100, 100, 3), dtype=np.uint8)
-        face_locations = face_recognition.face_locations(test_image)
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        faces = face_cascade.detectMultiScale(test_image)
         print("✓ Face detection test completed")
         
         return True

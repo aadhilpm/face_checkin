@@ -4,20 +4,10 @@
 # source env/bin/activate
 # pip install -r apps/face_checkin/requirements.txt
 
-# Core face recognition libraries
-mediapipe>=0.10.0
-onnxruntime>=1.15.0
-numpy>=1.21.0
-opencv-python>=4.5.0
-Pillow>=8.3.0
-
-# Image processing
-scikit-image>=0.19.0
-imutils>=0.5.4
-
-# Optional: For GPU acceleration (uncomment if needed)
-# onnxruntime-gpu>=1.15.0
+# Core libraries
+numpy>=1.21.0,<2.0.0
+opencv-python>=4.5.0,<5.0.0
+Pillow>=8.3.0,<11.0.0
 
 # Production optimizations
-gunicorn>=20.1.0  # For better WSGI serving
-redis>=4.0.0      # For caching and session management
+gunicorn>=20.1.0,<22.0.0

@@ -9,15 +9,10 @@ readme = "README.md"
 dynamic = ["version"]
 dependencies = [
     # "frappe~=15.0.0" # Installed and managed by bench.
-    "mediapipe>=0.10.0",
-    "onnxruntime>=1.15.0",
-    "numpy>=1.21.0",
-    "opencv-python>=4.5.0",
-    "Pillow>=8.3.0",
-    "scikit-image>=0.19.0",
-    "imutils>=0.5.4",
-    "gunicorn>=20.1.0",
-    "redis>=4.0.0",
+    "numpy>=1.21.0,<2.0.0",
+    "opencv-python>=4.5.0,<5.0.0",
+    "Pillow>=8.3.0,<11.0.0",
+    "gunicorn>=20.1.0,<22.0.0",
 ]
 
 [build-system]
@@ -31,16 +26,11 @@ build-backend = "flit_core.buildapi"
 [deploy.dependencies.apt]
 packages = [
     "libopencv-dev",
-    "python3-opencv",
     "libgl1-mesa-glx",
     "libglib2.0-0",
     "libsm6",
     "libxext6",
     "libxrender-dev",
-    "libgomp1",
-    "libgtk-3-0",
-    "cmake",
-    "build-essential",
 ]
 
 [tool.black]

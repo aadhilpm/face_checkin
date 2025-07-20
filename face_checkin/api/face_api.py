@@ -6,7 +6,7 @@ from io import BytesIO
 
 # Optional imports for face recognition functionality
 try:
-    from face_checkin.utils.face_recognition_mp import (
+    from face_checkin.utils.face_recognition_simple import (
         face_locations, face_encodings, compare_faces, face_distance,
         get_face_recognition, FACE_RECOGNITION_AVAILABLE
     )
@@ -32,29 +32,57 @@ def get_embedding_directory():
     """
     Get the embedding directory with fallback options
     """
+    # List of possible embedding directories in order of preference
+    possible_paths = []
+    
     try:
         # Try the standard app path first
-        embedding_dir = frappe.get_app_path('face_checkin', 'face_store', 'embeddings')
-        if os.path.exists(embedding_dir):
-            return embedding_dir
+        app_embedding_dir = frappe.get_app_path('face_checkin', 'face_store', 'embeddings')
+        possible_paths.append(app_embedding_dir)
     except:
         pass
     
-    # Try alternative paths
-    alt_paths = [
-        os.path.join(frappe.get_site_path(), 'private', 'files', 'face_embeddings'),
-        os.path.join(frappe.get_site_path(), 'public', 'files', 'face_embeddings'),
-        os.path.join(frappe.get_site_path(), 'face_embeddings')
-    ]
+    # Add fallback paths
+    try:
+        site_path = frappe.get_site_path()
+        possible_paths.extend([
+            os.path.join(site_path, 'private', 'files', 'face_embeddings'),
+            os.path.join(site_path, 'public', 'files', 'face_embeddings'),
+            os.path.join(site_path, 'face_embeddings')
+        ])
+    except:
+        pass
     
-    for path in alt_paths:
+    # Find the first existing directory with .npy files
+    for path in possible_paths:
         if os.path.exists(path):
-            return path
+            try:
+                # Check if directory has any .npy files
+                files = [f for f in os.listdir(path) if f.endswith('.npy')]
+                if files:  # If we found embedding files, use this directory
+                    return path
+                elif path == possible_paths[0]:  # Always prefer the app path even if empty
+                    return path
+            except:
+                continue
     
-    # Create the default path if none exist
-    default_path = os.path.join(frappe.get_site_path(), 'private', 'files', 'face_embeddings')
-    os.makedirs(default_path, exist_ok=True)
-    return default_path
+    # If no existing directories with content found, create and return the app path
+    if possible_paths:
+        default_path = possible_paths[0]
+        try:
+            os.makedirs(default_path, exist_ok=True)
+            return default_path
+        except:
+            pass
+    
+    # Last resort: create in site private files
+    try:
+        default_path = os.path.join(frappe.get_site_path(), 'private', 'files', 'face_embeddings')
+        os.makedirs(default_path, exist_ok=True)
+        return default_path
+    except:
+        # Ultimate fallback
+        return os.path.join(os.getcwd(), 'face_embeddings')
 
 @frappe.whitelist()
 def upload_face(employee_id, image_base64=None):
@@ -508,19 +536,33 @@ def check_enrollment_status(employee_ids=None):
     """
     embedding_dir = get_embedding_directory()
     
-    if not os.path.exists(embedding_dir):
+    # Debug logging
+    debug_info = {
+        "embedding_dir": embedding_dir,
+        "dir_exists": os.path.exists(embedding_dir) if embedding_dir else False,
+        "files_found": []
+    }
+    
+    if not embedding_dir or not os.path.exists(embedding_dir):
         return {
             "status": "error",
-            "message": "Face embeddings directory not found"
+            "message": "Face embeddings directory not found",
+            "debug": debug_info
         }
     
     try:
         # Get list of existing embedding files
         existing_embeddings = set()
-        for filename in os.listdir(embedding_dir):
+        all_files = os.listdir(embedding_dir)
+        debug_info["all_files"] = all_files
+        
+        for filename in all_files:
             if filename.endswith('.npy'):
                 employee_id = filename[:-4]  # Remove .npy extension
                 existing_embeddings.add(employee_id)
+                debug_info["files_found"].append({"filename": filename, "employee_id": employee_id})
+        
+        debug_info["existing_embeddings"] = list(existing_embeddings)
         
         # If specific employee IDs provided, check only those
         if employee_ids:
@@ -548,7 +590,8 @@ def check_enrollment_status(employee_ids=None):
             
             return {
                 "status": "success",
-                "enrollment_status": results
+                "enrollment_status": results,
+                "debug": debug_info
             }
         
         # Return status for all employees with images
@@ -581,7 +624,8 @@ def check_enrollment_status(employee_ids=None):
         
         return {
             "status": "success",
-            "enrollment_summary": enrollment_summary
+            "enrollment_summary": enrollment_summary,
+            "debug": debug_info
         }
         
     except Exception as e:
@@ -592,6 +636,71 @@ def check_enrollment_status(employee_ids=None):
         return {
             "status": "error",
             "message": f"Failed to check enrollment status: {str(e)}"
+        }
+
+@frappe.whitelist()
+def test_enrollment_status():
+    """
+    Test function to debug enrollment status - returns raw data for inspection
+    """
+    try:
+        embedding_dir = get_embedding_directory()
+        
+        test_result = {
+            "embedding_dir": embedding_dir,
+            "dir_exists": os.path.exists(embedding_dir) if embedding_dir else False,
+            "files": []
+        }
+        
+        if embedding_dir and os.path.exists(embedding_dir):
+            all_files = os.listdir(embedding_dir)
+            test_result["all_files"] = all_files
+            
+            for filename in all_files:
+                if filename.endswith('.npy'):
+                    filepath = os.path.join(embedding_dir, filename)
+                    employee_id = filename[:-4]
+                    
+                    try:
+                        # Load and check the embedding
+                        import numpy as np
+                        embedding = np.load(filepath)
+                        test_result["files"].append({
+                            "filename": filename,
+                            "employee_id": employee_id,
+                            "file_size": os.path.getsize(filepath),
+                            "embedding_shape": embedding.shape,
+                            "embedding_valid": embedding.size > 0
+                        })
+                    except Exception as e:
+                        test_result["files"].append({
+                            "filename": filename,
+                            "employee_id": employee_id,
+                            "error": str(e)
+                        })
+        
+        # Test employee query
+        try:
+            employees = frappe.db.sql("""
+                SELECT name, employee_name, image 
+                FROM `tabEmployee` 
+                WHERE image IS NOT NULL AND image != ''
+            """, as_dict=True)
+            test_result["employees_with_images"] = len(employees)
+            test_result["employee_sample"] = employees[:3] if employees else []
+        except Exception as e:
+            test_result["employee_query_error"] = str(e)
+        
+        return {
+            "status": "success",
+            "test_result": test_result
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": frappe.utils.get_traceback()
         }
 
 @frappe.whitelist()
