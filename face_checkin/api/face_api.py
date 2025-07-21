@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 import base64
 from io import BytesIO
+import glob
 
 # Optional imports for face recognition functionality
 try:
@@ -770,4 +771,116 @@ def upload_employee_image(employee_id, image_base64, filename="employee_photo.jp
         return {
             "status": "error",
             "message": f"Failed to upload image: {str(e)}"
+        }
+
+@frappe.whitelist()
+def delete_face_data(employee_id):
+    """
+    Delete face data for a specific employee
+    """
+    try:
+        if not FACE_RECOGNITION_AVAILABLE:
+            return {
+                "status": "error",
+                "message": "Face recognition libraries not available"
+            }
+        
+        # Get embedding directory
+        embedding_dir = get_embedding_directory()
+        if not embedding_dir or not os.path.exists(embedding_dir):
+            return {
+                "status": "error", 
+                "message": "Face data directory not found"
+            }
+        
+        # Look for face data file
+        face_file_path = os.path.join(embedding_dir, f"{employee_id}.npy")
+        
+        if not os.path.exists(face_file_path):
+            return {
+                "status": "warning",
+                "message": f"No face data found for employee {employee_id}"
+            }
+        
+        # Delete the face data file
+        os.remove(face_file_path)
+        
+        frappe.log_error(f"Face data deleted for employee: {employee_id}", "Face Data Deletion")
+        
+        return {
+            "status": "success",
+            "message": f"Face data successfully deleted for employee {employee_id}",
+            "employee_id": employee_id,
+            "deleted_file": face_file_path
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error deleting face data for {employee_id}: {str(e)}", "Face Data Deletion Error")
+        return {
+            "status": "error",
+            "message": f"Failed to delete face data: {str(e)}"
+        }
+
+@frappe.whitelist()
+def bulk_delete_face_data():
+    """
+    Delete all stored face data files
+    """
+    try:
+        if not FACE_RECOGNITION_AVAILABLE:
+            return {
+                "status": "error",
+                "message": "Face recognition libraries not available"
+            }
+        
+        # Get embedding directory
+        embedding_dir = get_embedding_directory()
+        if not embedding_dir or not os.path.exists(embedding_dir):
+            return {
+                "status": "error", 
+                "message": "Face data directory not found"
+            }
+        
+        # Find all .npy files
+        npy_files = glob.glob(os.path.join(embedding_dir, "*.npy"))
+        
+        if not npy_files:
+            return {
+                "status": "warning",
+                "message": "No face data files found to delete"
+            }
+        
+        deleted_files = []
+        failed_files = []
+        
+        for file_path in npy_files:
+            try:
+                employee_id = os.path.basename(file_path).replace('.npy', '')
+                os.remove(file_path)
+                deleted_files.append(employee_id)
+            except Exception as e:
+                failed_files.append({
+                    "file": os.path.basename(file_path),
+                    "error": str(e)
+                })
+        
+        frappe.log_error(f"Bulk face data deletion: {len(deleted_files)} deleted, {len(failed_files)} failed", "Bulk Face Data Deletion")
+        
+        return {
+            "status": "success",
+            "message": f"Deleted face data for {len(deleted_files)} employees",
+            "details": {
+                "deleted_count": len(deleted_files),
+                "deleted_employees": deleted_files,
+                "failed_count": len(failed_files),
+                "failed_files": failed_files,
+                "embedding_directory": embedding_dir
+            }
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in bulk face data deletion: {str(e)}", "Bulk Face Data Deletion Error")
+        return {
+            "status": "error",
+            "message": f"Failed to delete face data: {str(e)}"
         }

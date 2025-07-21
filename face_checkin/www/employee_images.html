@@ -223,6 +223,14 @@
             background: linear-gradient(135deg, #10b981, #059669);
         }
 
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
+        }
+
         .loading {
             display: inline-block;
             width: 20px;
@@ -477,6 +485,10 @@
                     <i class="fas fa-robot"></i>
                     Bulk Enroll All
                 </button>
+                <button class="btn btn-danger" onclick="bulkDeleteFaceData()">
+                    <i class="fas fa-trash"></i>
+                    Delete All Face Data
+                </button>
                 <button class="btn" onclick="testEnrollmentStatus()" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
                     <i class="fas fa-bug"></i>
                     Debug Status
@@ -693,6 +705,12 @@
                                 <i class="fas fa-robot"></i>
                                 ${enrollmentComplete ? 'Recreate Face Data' : 'Create Face Data'}
                             </button>
+                            ${enrollmentComplete ? `
+                                <button class="btn btn-danger" onclick="deleteFaceData('${employee.name}')" style="justify-content: center; margin: 0;">
+                                    <i class="fas fa-trash"></i>
+                                    Delete Face Data
+                                </button>
+                            ` : ''}
                         ` : `
                             <button class="btn" onclick="uploadImage('${employee.name}')" style="justify-content: center; margin: 0; background: linear-gradient(135deg, #f59e0b, #d97706);">
                                 <i class="fas fa-camera"></i>
@@ -813,6 +831,78 @@
             }
         }
 
+        async function deleteFaceData(employeeId) {
+            if (!confirm(`Are you sure you want to delete face data for employee ${employeeId}? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                showStatus('info', `<i class="fas fa-spinner fa-spin"></i> Deleting face data for employee ${employeeId}...`);
+
+                const response = await fetch('/api/method/face_checkin.api.face_api.delete_face_data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                    },
+                    body: JSON.stringify({
+                        employee_id: employeeId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.message && data.message.status === 'success') {
+                    showStatus('success', `<i class="fas fa-check-circle"></i> ${data.message.message}`);
+                    // Refresh employee list to show updated status
+                    setTimeout(() => loadEmployees(), 1000);
+                } else if (data.message && data.message.status === 'warning') {
+                    showStatus('warning', `<i class="fas fa-exclamation-triangle"></i> ${data.message.message}`);
+                } else {
+                    showStatus('error', `<i class="fas fa-exclamation-circle"></i> ${data.message ? data.message.message : 'Failed to delete face data'}`);
+                }
+            } catch (error) {
+                console.error('Delete face data error:', error);
+                showStatus('error', `<i class="fas fa-exclamation-triangle"></i> Error: ${error.message}`);
+            }
+        }
+
+        async function bulkDeleteFaceData() {
+            if (!confirm('Are you sure you want to delete ALL stored face data? This will remove face recognition data for all employees and cannot be undone.')) {
+                return;
+            }
+
+            try {
+                showStatus('info', `<i class="fas fa-spinner fa-spin"></i> Deleting all face data files...`);
+
+                const response = await fetch('/api/method/face_checkin.api.face_api.bulk_delete_face_data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.message && data.message.status === 'success') {
+                    showStatus('success', `<i class="fas fa-check-circle"></i> ${data.message.message}<br>
+                        <small>Deleted face data for ${data.message.details.deleted_count} employees</small><br>
+                        <small>Check browser console for detailed results.</small>`);
+                    console.log('Bulk deletion results:', data.message.details);
+                    // Refresh employee list to show updated status
+                    setTimeout(() => loadEmployees(), 2000);
+                } else if (data.message && data.message.status === 'warning') {
+                    showStatus('warning', `<i class="fas fa-exclamation-triangle"></i> ${data.message.message}`);
+                } else {
+                    showStatus('error', `<i class="fas fa-exclamation-circle"></i> ${data.message ? data.message.message : 'Bulk deletion failed'}`);
+                }
+            } catch (error) {
+                console.error('Bulk delete face data error:', error);
+                showStatus('error', `<i class="fas fa-exclamation-triangle"></i> Error: ${error.message}`);
+            }
+        }
+
         function showStatus(type, message) {
             const statusCard = document.getElementById('statusCard');
             const statusContent = document.getElementById('statusContent');
@@ -820,7 +910,8 @@
             const colors = {
                 'info': 'rgba(59, 130, 246, 0.1)',
                 'success': 'rgba(16, 185, 129, 0.1)', 
-                'error': 'rgba(239, 68, 68, 0.1)'
+                'error': 'rgba(239, 68, 68, 0.1)',
+                'warning': 'rgba(245, 158, 11, 0.1)'
             };
 
             statusContent.innerHTML = `
