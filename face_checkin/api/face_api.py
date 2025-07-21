@@ -384,7 +384,7 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
             checkin = frappe.new_doc("Employee Checkin")
             checkin.employee = recognized_employee
             checkin.employee_name = employee.employee_name
-            checkin.time = datetime.now()
+            checkin.time = frappe.utils.now_datetime()
             checkin.log_type = log_type
             checkin.device_id = device_id or "Face Recognition System"
             if project:
