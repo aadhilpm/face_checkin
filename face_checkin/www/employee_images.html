@@ -528,13 +528,15 @@
             </div>
         </div>
 
-        <!-- Status Card -->
-        <div class="card" id="statusCard" style="display: none;">
-            <div class="card-header">
-                <div class="card-icon">💬</div>
-                <div class="card-title">Status</div>
+        <!-- Status Popup Modal -->
+        <div class="modal" id="statusModal">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3 class="modal-title">Status</h3>
+                    <button class="close-btn" onclick="closeStatusModal()">&times;</button>
+                </div>
+                <div id="statusContent"></div>
             </div>
-            <div id="statusContent"></div>
         </div>
 
         <!-- Image Upload Modal -->
@@ -897,7 +899,7 @@
         }
 
         function showStatus(type, message) {
-            const statusCard = document.getElementById('statusCard');
+            const statusModal = document.getElementById('statusModal');
             const statusContent = document.getElementById('statusContent');
             
             const colors = {
@@ -913,15 +915,19 @@
                 </div>
             `;
             
-            statusCard.style.display = 'block';
+            statusModal.classList.add('active');
 
             // Auto hide after appropriate time based on message type and length
             if (type !== 'info') {
                 const hideDelay = message.includes('Image Quality Issue') ? 10000 : 5000; // Longer delay for quality issues
                 setTimeout(() => {
-                    statusCard.style.display = 'none';
+                    statusModal.classList.remove('active');
                 }, hideDelay);
             }
+        }
+
+        function closeStatusModal() {
+            document.getElementById('statusModal').classList.remove('active');
         }
 
         function showModalStatus(type, message) {
