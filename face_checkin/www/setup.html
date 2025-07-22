@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#1f2937">
-    <title>Face Check-in Setup Guide</title>
+    <meta name="theme-color" content="#1e40af">
+    <title>Face Recognition Setup</title>
     <link rel="manifest" href="/assets/face_checkin/manifest.json">
     <link rel="icon" href="/assets/face_checkin/icon-192.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -16,304 +16,782 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --primary-blue: #1e40af;
+            --primary-blue-light: #3b82f6;
+            --primary-blue-dark: #1e3a8a;
+            --success-green: #10b981;
+            --success-green-light: #34d399;
+            --error-red: #ef4444;
+            --error-red-light: #f87171;
+            --warning-orange: #f59e0b;
+            --warning-orange-light: #fbbf24;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --white: #ffffff;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --border-radius: 12px;
+            --border-radius-lg: 16px;
+            --border-radius-full: 9999px;
+        }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
             min-height: 100vh;
-            color: #f9fafb;
-            padding: 2rem;
+            color: var(--white);
+            overflow-x: hidden;
+            position: relative;
         }
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: rgba(31, 41, 55, 0.8);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(75, 85, 99, 0.3);
-            border-radius: 16px;
-            padding: 2rem;
+        /* Background Pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                              radial-gradient(circle at 75% 75%, rgba(255,255,255,0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
         }
 
+        /* Header */
         .header {
-            text-align: center;
-            margin-bottom: 2rem;
+            background: rgba(59, 130, 246, 0.1);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1.5rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 600;
-            color: #f9fafb;
-            margin-bottom: 0.5rem;
+        .header-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .header p {
-            color: #9ca3af;
-            font-size: 1.125rem;
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
 
-        .step {
-            background: rgba(17, 24, 39, 0.5);
-            border: 1px solid rgba(75, 85, 99, 0.3);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .step-number {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--white);
+            color: var(--primary-blue);
+            border-radius: var(--border-radius);
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 1.5rem;
             font-weight: 600;
-            margin-bottom: 1rem;
+            box-shadow: var(--shadow-md);
         }
 
-        .step h3 {
-            color: #f9fafb;
-            font-size: 1.25rem;
-            margin-bottom: 0.75rem;
+        .logo-text h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 0.25rem;
         }
 
-        .step p {
-            color: #d1d5db;
-            margin-bottom: 1rem;
-            line-height: 1.6;
-        }
-
-        .code-block {
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(75, 85, 99, 0.3);
-            border-radius: 8px;
-            padding: 1rem;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        .logo-text p {
             font-size: 0.875rem;
-            color: #34d399;
-            margin: 1rem 0;
-            overflow-x: auto;
+            color: rgba(255, 255, 255, 0.8);
         }
 
-        .warning {
-            background: rgba(245, 158, 11, 0.1);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            border-radius: 8px;
-            padding: 1rem;
-            margin: 1rem 0;
+        .nav-links {
+            display: flex;
+            gap: 1rem;
         }
 
-        .warning-icon {
-            color: #f59e0b;
-            margin-right: 0.5rem;
-        }
-
-        .success {
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            border-radius: 8px;
-            padding: 1rem;
-            margin: 1rem 0;
-        }
-
-        .success-icon {
-            color: #10b981;
-            margin-right: 0.5rem;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
-            padding: 0.875rem 2rem;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
             text-decoration: none;
-            display: inline-flex;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            font-weight: 500;
+            display: flex;
             align-items: center;
             gap: 0.5rem;
         }
 
-        .btn:hover {
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--white);
+            transform: translateY(-1px);
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Card Styles */
+        .card {
+            background: var(--white);
+            color: var(--gray-800);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
         }
 
-        .status-check {
-            margin-top: 2rem;
+        .card-header {
             padding: 1.5rem;
-            background: rgba(17, 24, 39, 0.5);
-            border: 1px solid rgba(75, 85, 99, 0.3);
-            border-radius: 12px;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
 
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-blue);
+            color: var(--white);
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.125rem;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .card-content {
+            padding: 2rem;
+        }
+
+        /* Status Items */
         .status-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--gray-200);
         }
 
         .status-item:last-child {
             border-bottom: none;
         }
 
+        .status-label {
+            font-weight: 500;
+            font-size: 1rem;
+            color: var(--gray-700);
+        }
+
+        .status-value {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+        }
+
         .status-good {
-            color: #10b981;
+            color: var(--success-green);
         }
 
         .status-bad {
-            color: #ef4444;
+            color: var(--error-red);
+        }
+
+        .status-info {
+            color: var(--primary-blue);
+        }
+
+        .status-warning {
+            color: var(--warning-orange);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            min-width: 160px;
+            justify-content: center;
+            box-shadow: var(--shadow-md);
+            text-decoration: none;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: var(--white);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-blue-light);
+        }
+
+        .btn-secondary {
+            background: var(--success-green);
+            color: var(--white);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--success-green-light);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: var(--gray-500);
+            gap: 0.75rem;
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Setup Steps */
+        .setup-steps {
+            margin-top: 1rem;
+        }
+
+        .step {
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--gray-50);
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--primary-blue);
+        }
+
+        .step h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .step p {
+            color: var(--gray-600);
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .code {
+            background: var(--gray-800);
+            color: var(--gray-100);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+            border: 1px solid var(--gray-700);
+        }
+
+        .step-number {
+            width: 24px;
+            height: 24px;
+            background: var(--primary-blue);
+            color: var(--white);
+            border-radius: var(--border-radius-full);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        /* Alert Styles */
+        .alert {
+            padding: 1rem 1.25rem;
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            font-weight: 500;
+        }
+
+        .alert-info {
+            background: rgba(30, 64, 175, 0.1);
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success-green);
+            color: var(--success-green);
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid var(--warning-orange);
+            color: var(--warning-orange);
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error-red);
+            color: var(--error-red);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-container {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
+                padding: 0 1rem;
+            }
+            
+            .nav-links {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .main-container {
+                padding: 0 1rem;
+                margin: 1rem auto;
+            }
+            
+            .card-content {
+                padding: 1.5rem;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .btn {
+                min-width: unset;
+            }
+            
+            .status-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-container {
+                padding: 0 1rem;
+            }
+            
+            .logo-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.25rem;
+            }
+            
+            .logo-text h1 {
+                font-size: 1.25rem;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1><i class="fas fa-cog"></i> Face Check-in Setup</h1>
-            <p>Install dependencies for facial recognition functionality</p>
-        </div>
-
-        <div class="warning">
-            <i class="fas fa-exclamation-triangle warning-icon"></i>
-            <strong>Dependencies Required:</strong> The face recognition system requires additional Python packages to function properly.
-        </div>
-
-        <div class="step">
-            <div class="step-number">1</div>
-            <h3>Access Your Server</h3>
-            <p>Connect to your Frappe/ERPNext server via SSH or terminal access where the bench is installed.</p>
-        </div>
-
-        <div class="step">
-            <div class="step-number">2</div>
-            <h3>Activate Bench Environment</h3>
-            <p>Navigate to your bench directory and activate the virtual environment:</p>
-            <div class="code-block">
-cd /path/to/your/bench<br>
-source env/bin/activate
-            </div>
-        </div>
-
-        <div class="step">
-            <div class="step-number">3</div>
-            <h3>Install Face Recognition Dependencies</h3>
-            <p>Install the required Python packages for face recognition:</p>
-            <div class="code-block">
-pip install face-recognition pillow numpy
-            </div>
-            <div class="warning">
-                <i class="fas fa-info-circle warning-icon"></i>
-                <strong>Note:</strong> This may take several minutes as it needs to compile dlib and other dependencies.
-            </div>
-        </div>
-
-        <div class="step">
-            <div class="step-number">4</div>
-            <h3>Install System Dependencies (if needed)</h3>
-            <p>If you encounter errors, you may need to install system-level dependencies first:</p>
-            <div class="code-block">
-# For Ubuntu/Debian:<br>
-sudo apt-get update<br>
-sudo apt-get install build-essential cmake<br>
-sudo apt-get install libopenblas-dev liblapack-dev<br>
-sudo apt-get install libx11-dev libgtk-3-dev<br>
-<br>
-# For CentOS/RHEL:<br>
-sudo yum groupinstall "Development Tools"<br>
-sudo yum install cmake<br>
-sudo yum install openblas-devel lapack-devel
-            </div>
-        </div>
-
-        <div class="step">
-            <div class="step-number">5</div>
-            <h3>Restart Your Bench</h3>
-            <p>After installation, restart your bench to load the new dependencies:</p>
-            <div class="code-block">
-bench restart
-            </div>
-        </div>
-
-        <div class="status-check">
-            <h3><i class="fas fa-heartbeat"></i> System Status</h3>
-            <div id="statusContainer">
-                <div class="status-item">
-                    <span>Loading system status...</span>
-                    <div class="loading"></div>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-cogs"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>Face Recognition Setup</h1>
+                    <p>System Configuration & Status</p>
                 </div>
             </div>
-            <button class="btn" onclick="checkStatus()" style="margin-top: 1rem;">
-                <i class="fas fa-sync-alt"></i>
-                Refresh Status
-            </button>
+            <div class="nav-links">
+                <a href="/checkin" class="nav-link">
+                    <i class="fas fa-user-check"></i> Check-in
+                </a>
+                <a href="/employee-images" class="nav-link">
+                    <i class="fas fa-users"></i> Manage
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- System Status Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-heartbeat"></i>
+                </div>
+                <h2 class="card-title">System Status</h2>
+            </div>
+            <div class="card-content">
+                <div id="status-container">
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i> Loading system status...
+                    </div>
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="loadStatus()">
+                        <i class="fas fa-sync-alt"></i> Refresh Status
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadDetailedStatus()">
+                        <i class="fas fa-search"></i> Detailed Check
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <div class="success" style="margin-top: 2rem;">
-            <i class="fas fa-check-circle success-icon"></i>
-            Once dependencies are installed, you can proceed to the <a href="/checkin" style="color: #34d399;">check-in portal</a> and <a href="/employee-images" style="color: #34d399;">employee management page</a>.
+        <!-- Installation Guide Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-wrench"></i>
+                </div>
+                <h2 class="card-title">Installation Guide</h2>
+            </div>
+            <div class="card-content">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <div>
+                        <strong>First Time Setup?</strong><br>
+                        Follow these steps to install the required dependencies for face recognition.
+                    </div>
+                </div>
+
+                <div class="setup-steps">
+                    <div class="step">
+                        <h3>
+                            <span class="step-number">1</span>
+                            Install Dependencies
+                        </h3>
+                        <p>Install required Python packages in your bench environment:</p>
+                        <div class="code">cd /path/to/your/bench<br>source env/bin/activate<br>pip install opencv-python pillow numpy</div>
+                    </div>
+
+                    <div class="step">
+                        <h3>
+                            <span class="step-number">2</span>
+                            Install System Dependencies
+                        </h3>
+                        <p>For Ubuntu/Debian systems, install OpenCV system libraries:</p>
+                        <div class="code">sudo apt-get update<br>sudo apt-get install -y libopencv-dev libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev</div>
+                    </div>
+
+                    <div class="step">
+                        <h3>
+                            <span class="step-number">3</span>
+                            Restart Services
+                        </h3>
+                        <p>Restart your bench to load the new packages:</p>
+                        <div class="code">bench restart</div>
+                    </div>
+
+                    <div class="step">
+                        <h3>
+                            <span class="step-number">4</span>
+                            Verify Installation
+                        </h3>
+                        <p>Use the "Refresh Status" button above to check if everything is working correctly.</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <div>
+                        <strong>Next Steps:</strong><br>
+                        Once dependencies are installed, visit the <a href="/employee-images" style="color: var(--primary-blue); text-decoration: underline;">Employee Management</a> page to enroll employee faces.
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        async function checkStatus() {
+        // Set Frappe context
+        window.frappe = window.frappe || {};
+        frappe.csrf_token = '{{ csrf_token }}';
+        
+        // Simple status loading function
+        async function loadStatus() {
+            const container = document.getElementById('status-container');
+            container.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Loading system status...</div>';
+
             try {
-                const response = await fetch('/api/method/face_checkin.api.face_api.check_system_status');
+                const response = await fetch('/api/method/face_checkin.api.face_api.check_system_status', {
+                    headers: {
+                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                    }
+                });
                 const data = await response.json();
                 
-                const status = data.message;
-                const container = document.getElementById('statusContainer');
-                
-                container.innerHTML = `
-                    <div class="status-item">
-                        <span>Face Recognition Available</span>
-                        <span class="${status.face_recognition_available ? 'status-good' : 'status-bad'}">
-                            <i class="fas fa-${status.face_recognition_available ? 'check' : 'times'}"></i>
-                            ${status.face_recognition_available ? 'Yes' : 'No'}
-                        </span>
-                    </div>
-                    <div class="status-item">
-                        <span>Embedding Directory</span>
-                        <span class="${status.embedding_directory_exists ? 'status-good' : 'status-bad'}">
-                            <i class="fas fa-${status.embedding_directory_exists ? 'check' : 'times'}"></i>
-                            ${status.embedding_directory_exists ? 'Exists' : 'Missing'}
-                        </span>
-                    </div>
-                    <div class="status-item">
-                        <span>Current User</span>
-                        <span style="color: #9ca3af;">${status.user}</span>
-                    </div>
-                    <div class="status-item">
-                        <span>User Roles</span>
-                        <span style="color: #9ca3af;">${status.user_roles.join(', ')}</span>
-                    </div>
-                `;
+                if (response.ok && data && data.message) {
+                    displayStatus(data.message);
+                } else {
+                    container.innerHTML = '<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Failed to load system status</div>';
+                }
             } catch (error) {
-                console.error('Error checking status:', error);
-                document.getElementById('statusContainer').innerHTML = `
-                    <div class="status-item">
-                        <span style="color: #ef4444;">Error checking system status</span>
-                    </div>
-                `;
+                console.error('Error loading status:', error);
+                container.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Error: ${error.message}</div>`;
             }
         }
-        
-        // Check status on page load
-        document.addEventListener('DOMContentLoaded', checkStatus);
-        
-        // Register service worker for PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/assets/face_checkin/js/sw.js')
-                    .then(registration => console.log('SW registered'))
-                    .catch(error => console.log('SW registration failed'));
-            });
+
+        // Display status in modern format
+        function displayStatus(data) {
+            const container = document.getElementById('status-container');
+            const faceOk = data.face_recognition_available;
+            const dirOk = data.embedding_directory_exists;
+            
+            container.innerHTML = `
+                <div class="status-item">
+                    <span class="status-label">Face Recognition System</span>
+                    <span class="status-value ${faceOk ? 'status-good' : 'status-bad'}">
+                        <i class="fas fa-${faceOk ? 'check-circle' : 'times-circle'}"></i>
+                        ${faceOk ? 'Available' : 'Not Available'}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Face Data Storage</span>
+                    <span class="status-value ${dirOk ? 'status-good' : 'status-bad'}">
+                        <i class="fas fa-${dirOk ? 'folder-check' : 'folder-open'}"></i>
+                        ${dirOk ? 'Ready' : 'Not Found'}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Current User</span>
+                    <span class="status-value status-info">
+                        <i class="fas fa-user"></i>
+                        ${data.user || 'Unknown'}
+                    </span>
+                </div>
+                ${data.user_roles && data.user_roles.length > 0 ? `
+                <div class="status-item">
+                    <span class="status-label">User Roles</span>
+                    <span class="status-value status-info">
+                        <i class="fas fa-shield-alt"></i>
+                        ${data.user_roles.join(', ')}
+                    </span>
+                </div>
+                ` : ''}
+                ${data.embedding_directory ? `
+                <div class="status-item">
+                    <span class="status-label">Storage Directory</span>
+                    <span class="status-value status-info" style="font-size: 0.85rem; word-break: break-all;">
+                        <i class="fas fa-folder"></i>
+                        ${data.embedding_directory}
+                    </span>
+                </div>
+                ` : ''}
+            `;
+
+            // Show appropriate alerts based on status
+            if (!faceOk) {
+                container.innerHTML += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Face recognition is not available. Please install the required dependencies using the guide below.</div>';
+            } else if (faceOk && dirOk) {
+                container.innerHTML += '<div class="alert alert-success"><i class="fas fa-check-circle"></i> System is ready! You can now proceed to enroll employee faces.</div>';
+            }
         }
+
+        // Detailed status check
+        async function loadDetailedStatus() {
+            const container = document.getElementById('status-container');
+            container.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Running comprehensive system check...</div>';
+
+            try {
+                const response = await fetch('/api/method/face_checkin.api.face_api.get_detailed_status', {
+                    headers: {
+                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                    }
+                });
+                const data = await response.json();
+                
+                if (response.ok && data && data.message) {
+                    displayDetailedStatus(data.message);
+                } else {
+                    container.innerHTML = '<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Failed to load detailed status</div>';
+                }
+            } catch (error) {
+                console.error('Error loading detailed status:', error);
+                container.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Error: ${error.message}</div>`;
+            }
+        }
+
+        // Display detailed status
+        function displayDetailedStatus(data) {
+            const container = document.getElementById('status-container');
+            
+            container.innerHTML = `
+                <div class="status-item">
+                    <span class="status-label">OpenCV (Computer Vision)</span>
+                    <span class="status-value ${data.opencv === 'Available' ? 'status-good' : 'status-bad'}">
+                        <i class="fas fa-${data.opencv === 'Available' ? 'check-circle' : 'times-circle'}"></i>
+                        ${data.opencv}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">PIL/Pillow (Image Processing)</span>
+                    <span class="status-value ${data.pil === 'Available' ? 'status-good' : 'status-bad'}">
+                        <i class="fas fa-${data.pil === 'Available' ? 'check-circle' : 'times-circle'}"></i>
+                        ${data.pil}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">NumPy (Numerical Computing)</span>
+                    <span class="status-value ${data.numpy === 'Available' ? 'status-good' : 'status-bad'}">
+                        <i class="fas fa-${data.numpy === 'Available' ? 'check-circle' : 'times-circle'}"></i>
+                        ${data.numpy}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Face Recognition Engine</span>
+                    <span class="status-value ${data.face_recognition_flag ? 'status-good' : 'status-bad'}">
+                        <i class="fas fa-${data.face_recognition_flag ? 'toggle-on' : 'toggle-off'}"></i>
+                        ${data.face_recognition_flag ? 'Enabled' : 'Disabled'}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Face Data Directory</span>
+                    <span class="status-value ${data.dir_exists ? 'status-good' : 'status-bad'}">
+                        <i class="fas fa-${data.dir_exists ? 'folder-check' : 'folder-open'}"></i>
+                        ${data.dir_exists ? 'Exists' : 'Missing'}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Enrolled Faces</span>
+                    <span class="status-value ${data.embedding_files > 0 ? 'status-good' : 'status-warning'}">
+                        <i class="fas fa-users"></i>
+                        ${data.embedding_files} employees
+                    </span>
+                </div>
+                ${data.embedding_dir ? `
+                <div class="status-item">
+                    <span class="status-label">Storage Location</span>
+                    <span class="status-value status-info" style="font-size: 0.85rem; word-break: break-all;">
+                        <i class="fas fa-folder"></i>
+                        ${data.embedding_dir}
+                    </span>
+                </div>
+                ` : ''}
+            `;
+
+            // Add appropriate alerts based on detailed status
+            const allDepsAvailable = data.opencv === 'Available' && data.pil === 'Available' && data.numpy === 'Available';
+            
+            if (!allDepsAvailable) {
+                const missingDeps = [];
+                if (data.opencv !== 'Available') missingDeps.push('OpenCV');
+                if (data.pil !== 'Available') missingDeps.push('PIL/Pillow');
+                if (data.numpy !== 'Available') missingDeps.push('NumPy');
+                
+                container.innerHTML += `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Missing dependencies: ${missingDeps.join(', ')}. Please follow the installation guide below.</div>`;
+            } else if (data.face_recognition_flag && data.dir_exists) {
+                if (data.embedding_files === 0) {
+                    container.innerHTML += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> System is ready! No employees enrolled yet. Visit <a href="/employee-images" style="color: var(--primary-blue); text-decoration: underline;">Employee Management</a> to get started.</div>';
+                } else {
+                    container.innerHTML += `<div class="alert alert-success"><i class="fas fa-check-circle"></i> System fully operational with ${data.embedding_files} enrolled employees. Ready for face recognition!</div>`;
+                }
+            }
+        }
+
+        // Load status when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add fade-in animation
+            document.body.classList.add('fade-in');
+            
+            // Load system status
+            loadStatus();
+        });
     </script>
-    <script src="/assets/face_checkin/js/pwa-installer.js"></script>
 </body>
 </html>

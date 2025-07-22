@@ -32,60 +32,67 @@ except ImportError as e:
 
 def get_embedding_directory():
     """
-    Get the embedding directory with fallback options
-    Prioritizes site directory to persist across app updates
+    Get the embedding directory, prioritizing site directory to persist across app updates
+    Always creates the directory if it doesn't exist
     """
-    # List of possible embedding directories in order of preference
-    possible_paths = []
-    
-    # Add site paths first to persist across app updates
+    # Primary site directory (preferred - persists across app updates)
+    site_embedding_dir = None
     try:
         site_path = frappe.get_site_path()
-        possible_paths.extend([
-            os.path.join(site_path, 'private', 'files', 'face_embeddings'),
-            os.path.join(site_path, 'public', 'files', 'face_embeddings'),
-            os.path.join(site_path, 'face_embeddings')
+        site_embedding_dir = os.path.join(site_path, 'private', 'files', 'face_embeddings')
+    except Exception as e:
+        frappe.log_error(f"Failed to get site path: {e}", "Embedding Directory Error")
+    
+    # Check if there are existing embeddings in other locations first
+    possible_existing_paths = []
+    
+    try:
+        site_path = frappe.get_site_path()
+        possible_existing_paths.extend([
+            os.path.join(site_path, 'private', 'files', 'face_embeddings'),  # Primary location
+            os.path.join(site_path, 'public', 'files', 'face_embeddings'),   # Alternative location
+            os.path.join(site_path, 'face_embeddings')  # Direct in site root
         ])
     except:
-        pass
+        if site_embedding_dir:
+            possible_existing_paths.append(site_embedding_dir)
     
+    # Check app directory for existing embeddings (legacy)
     try:
-        # App path as fallback (will be cleared on updates)
         app_embedding_dir = frappe.get_app_path('face_checkin', 'face_store', 'embeddings')
-        possible_paths.append(app_embedding_dir)
+        possible_existing_paths.append(app_embedding_dir)
     except:
         pass
     
-    # Find the first existing directory with .npy files
-    for path in possible_paths:
+    # Look for existing directory with embedding files
+    for path in possible_existing_paths:
         if os.path.exists(path):
             try:
-                # Check if directory has any .npy files
                 files = [f for f in os.listdir(path) if f.endswith('.npy')]
-                if files:  # If we found embedding files, use this directory
+                if files:  # Found existing embeddings - use this directory
+                    frappe.log_error(f"Using existing embedding directory with {len(files)} files: {path}", "Embedding Directory Info")
                     return path
-                elif path == possible_paths[0]:  # Always prefer the app path even if empty
-                    return path
-            except:
+            except Exception as e:
                 continue
     
-    # If no existing directories with content found, create and return the first site path
-    if possible_paths:
-        default_path = possible_paths[0]  # Site private files directory
+    # No existing embeddings found - create and use the primary site directory
+    if site_embedding_dir:
         try:
-            os.makedirs(default_path, exist_ok=True)
-            return default_path
-        except:
-            pass
+            os.makedirs(site_embedding_dir, exist_ok=True)
+            frappe.log_error(f"Created new embedding directory: {site_embedding_dir}", "Embedding Directory Info")
+            return site_embedding_dir
+        except Exception as e:
+            frappe.log_error(f"Failed to create site embedding directory: {e}", "Embedding Directory Error")
     
-    # Last resort: create in site private files
+    # Fallback: try to create in current working directory
+    fallback_dir = os.path.join(os.getcwd(), 'face_embeddings')
     try:
-        default_path = os.path.join(frappe.get_site_path(), 'private', 'files', 'face_embeddings')
-        os.makedirs(default_path, exist_ok=True)
-        return default_path
-    except:
-        # Ultimate fallback
-        return os.path.join(os.getcwd(), 'face_embeddings')
+        os.makedirs(fallback_dir, exist_ok=True)
+        frappe.log_error(f"Using fallback embedding directory: {fallback_dir}", "Embedding Directory Warning")
+        return fallback_dir
+    except Exception as e:
+        frappe.log_error(f"Failed to create fallback embedding directory: {e}", "Embedding Directory Error")
+        return None
 
 @frappe.whitelist()
 def upload_face(employee_id, image_base64=None):
@@ -243,9 +250,21 @@ def bulk_enroll_from_employee_images():
     }
 
 @frappe.whitelist()
-def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=None):
+def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=None, latitude=None, longitude=None):
     """
     Recognize employee from face and create checkin record
+    
+    Args:
+        image_base64: Base64 encoded image for face recognition
+        project: Project to associate with checkin
+        device_id: Device identifier
+        log_type: IN or OUT (auto-determined if not provided)
+        latitude: Latitude coordinate (REQUIRED if HR Settings allow_geolocation_tracking is enabled)
+        longitude: Longitude coordinate (REQUIRED if HR Settings allow_geolocation_tracking is enabled)
+    
+    Returns:
+        dict: Response with status, message, and employee details
+        - If geolocation_required=True in error response, coordinates must be provided
     """
     if not FACE_RECOGNITION_AVAILABLE:
         return {
@@ -446,7 +465,37 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
             checkin.device_id = device_id or "Face Recognition System"
             if project:
                 checkin.custom_project = project
-            checkin.insert()
+            
+            # Check HR Settings for geolocation tracking
+            hr_settings = frappe.get_single("HR Settings")
+            if hr_settings.allow_geolocation_tracking:
+                if latitude and longitude:
+                    try:
+                        checkin.latitude = float(latitude)
+                        checkin.longitude = float(longitude)
+                    except (ValueError, TypeError):
+                        return {
+                            "status": "error",
+                            "message": "Invalid latitude or longitude coordinates provided.",
+                            "geolocation_required": True
+                        }
+                else:
+                    # Return error if geolocation is required but coordinates not provided
+                    return {
+                        "status": "error",
+                        "message": "Geolocation tracking is enabled. Please provide latitude and longitude coordinates.",
+                        "geolocation_required": True
+                    }
+            
+            try:
+                checkin.insert()
+            except frappe.ValidationError as ve:
+                # Handle validation errors from ERPNext (like distance validation)
+                return {
+                    "status": "error",
+                    "message": f"Check-in validation failed: {str(ve)}",
+                    "geolocation_required": hr_settings.allow_geolocation_tracking
+                }
             
             return {
                 "status": "success",
@@ -585,6 +634,92 @@ def get_projects():
         return {
             "status": "error",
             "message": f"Failed to fetch projects: {str(e)}"
+        }
+
+@frappe.whitelist()
+def check_system_status():
+    """
+    Simple system status check for face recognition setup
+    """
+    # Check face recognition availability
+    face_available = FACE_RECOGNITION_AVAILABLE
+    
+    # Get embedding directory
+    embedding_dir = get_embedding_directory()
+    dir_exists = bool(embedding_dir and os.path.exists(embedding_dir))
+    
+    # Get user info
+    user = frappe.session.user if hasattr(frappe, 'session') else "Guest"
+    roles = frappe.get_roles(user) if user != "Guest" else []
+    
+    return {
+        "face_recognition_available": face_available,
+        "embedding_directory_exists": dir_exists,
+        "embedding_directory": embedding_dir,
+        "user": user,
+        "user_roles": roles
+    }
+
+@frappe.whitelist()
+def get_detailed_status():
+    """
+    Detailed system diagnosis - simplified version
+    """
+    status = {}
+    
+    # Test dependencies one by one
+    try:
+        import cv2
+        status["opencv"] = "Available"
+    except Exception as e:
+        status["opencv"] = f"Error: {str(e)}"
+    
+    try:
+        from PIL import Image
+        status["pil"] = "Available"
+    except Exception as e:
+        status["pil"] = f"Error: {str(e)}"
+    
+    try:
+        import numpy as np
+        status["numpy"] = "Available"
+    except Exception as e:
+        status["numpy"] = f"Error: {str(e)}"
+    
+    # Check directory
+    embedding_dir = get_embedding_directory()
+    status["embedding_dir"] = embedding_dir
+    status["dir_exists"] = os.path.exists(embedding_dir) if embedding_dir else False
+    
+    # Check embeddings
+    if status["dir_exists"]:
+        try:
+            files = [f for f in os.listdir(embedding_dir) if f.endswith('.npy')]
+            status["embedding_files"] = len(files)
+        except:
+            status["embedding_files"] = 0
+    else:
+        status["embedding_files"] = 0
+    
+    status["face_recognition_flag"] = FACE_RECOGNITION_AVAILABLE
+    
+    return status
+
+@frappe.whitelist()
+def get_geolocation_settings():
+    """
+    Get HR Settings geolocation tracking configuration
+    """
+    try:
+        hr_settings = frappe.get_single("HR Settings")
+        return {
+            "status": "success",
+            "allow_geolocation_tracking": bool(hr_settings.allow_geolocation_tracking)
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to get geolocation settings: {str(e)}"
         }
 
 @frappe.whitelist()

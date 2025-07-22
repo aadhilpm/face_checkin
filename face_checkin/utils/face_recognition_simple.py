@@ -26,6 +26,9 @@ except ImportError:
 try:
     from PIL import Image
     import hashlib
+    import cv2
+    import numpy as np
+    # Just test that the basic imports work - don't test cascade creation during import
     FACE_RECOGNITION_AVAILABLE = True
 except ImportError as e:
     FACE_RECOGNITION_AVAILABLE = False
