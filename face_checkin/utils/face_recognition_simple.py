@@ -438,6 +438,113 @@ class SimpleFaceRecognition:
             except:
                 print(f"Face distance calculation error: {e}")
             return [1.0] * len(face_encodings)
+    
+    def validate_face_quality(self, image: np.ndarray, face_location: Tuple[int, int, int, int]) -> dict:
+        """
+        Validate face image quality for better recognition accuracy
+        Returns quality metrics and recommendations
+        """
+        try:
+            top, right, bottom, left = face_location
+            face_image = image[top:bottom, left:right]
+            
+            if face_image.size == 0:
+                return {"valid": False, "reason": "Empty face region"}
+            
+            # Convert to grayscale for analysis
+            if len(face_image.shape) == 3:
+                gray_face = cv2.cvtColor(face_image, cv2.COLOR_BGR2GRAY)
+            else:
+                gray_face = face_image
+            
+            quality_issues = []
+            
+            # 1. Check face size (minimum 50x50 pixels)
+            height, width = gray_face.shape
+            if height < 50 or width < 50:
+                quality_issues.append("Face too small - move closer to camera")
+            
+            # 2. Check brightness
+            mean_brightness = np.mean(gray_face)
+            if mean_brightness < 50:
+                quality_issues.append("Too dark - improve lighting")
+            elif mean_brightness > 200:
+                quality_issues.append("Too bright - reduce lighting")
+            
+            # 3. Check contrast
+            contrast = np.std(gray_face)
+            if contrast < 20:
+                quality_issues.append("Low contrast - improve lighting conditions")
+            
+            # 4. Check blur (using Laplacian variance)
+            laplacian_var = cv2.Laplacian(gray_face, cv2.CV_64F).var()
+            if laplacian_var < 100:
+                quality_issues.append("Image too blurry - hold steady and ensure good focus")
+            
+            # 5. Check if face is roughly centered and not cut off
+            face_width = right - left
+            face_height = bottom - top
+            image_height, image_width = image.shape[:2]
+            
+            # Face should be at least 15% of image width/height for good quality
+            if face_width < 0.15 * image_width or face_height < 0.15 * image_height:
+                quality_issues.append("Face too small in frame - move closer")
+            
+            # Face shouldn't be cut off at edges
+            edge_margin = 10
+            if left < edge_margin or top < edge_margin or right > (image_width - edge_margin) or bottom > (image_height - edge_margin):
+                quality_issues.append("Face partially cut off - center yourself in frame")
+            
+            return {
+                "valid": len(quality_issues) == 0,
+                "quality_score": max(0, 100 - len(quality_issues) * 20),
+                "issues": quality_issues,
+                "metrics": {
+                    "brightness": mean_brightness,
+                    "contrast": contrast,
+                    "sharpness": laplacian_var,
+                    "face_size": (width, height)
+                }
+            }
+            
+        except Exception as e:
+            try:
+                frappe.log_error(f"Face quality validation error: {e}")
+            except:
+                print(f"Face quality validation error: {e}")
+            return {"valid": False, "reason": "Quality validation failed"}
+    
+    def get_best_face_from_multiple(self, image: np.ndarray, face_locations: List[Tuple[int, int, int, int]]) -> Tuple[int, int, int, int]:
+        """
+        Select the best quality face from multiple detected faces
+        Returns the face location with highest quality score
+        """
+        if not face_locations:
+            return None
+            
+        if len(face_locations) == 1:
+            return face_locations[0]
+        
+        best_face = None
+        best_score = -1
+        
+        for face_location in face_locations:
+            quality = self.validate_face_quality(image, face_location)
+            if quality["valid"] and quality["quality_score"] > best_score:
+                best_score = quality["quality_score"]
+                best_face = face_location
+        
+        # If no valid faces, return the largest one
+        if best_face is None:
+            largest_area = 0
+            for face_location in face_locations:
+                top, right, bottom, left = face_location
+                area = (right - left) * (bottom - top)
+                if area > largest_area:
+                    largest_area = area
+                    best_face = face_location
+        
+        return best_face
 
 
 # Global instance
@@ -474,3 +581,15 @@ def face_distance(known_encodings, face_encoding):
     """Calculate face distances - compatibility function"""
     fr = get_face_recognition()
     return fr.face_distance(known_encodings, face_encoding)
+
+
+def validate_face_quality(image, face_location):
+    """Validate face quality - compatibility function"""
+    fr = get_face_recognition()
+    return fr.validate_face_quality(image, face_location)
+
+
+def get_best_face_from_multiple(image, face_locations):
+    """Get best quality face from multiple faces - compatibility function"""
+    fr = get_face_recognition()
+    return fr.get_best_face_from_multiple(image, face_locations)

@@ -9,7 +9,8 @@ import glob
 try:
     from face_checkin.utils.face_recognition_simple import (
         face_locations, face_encodings, compare_faces, face_distance,
-        get_face_recognition, FACE_RECOGNITION_AVAILABLE
+        get_face_recognition, FACE_RECOGNITION_AVAILABLE,
+        validate_face_quality, get_best_face_from_multiple
     )
     import numpy as np
     from PIL import Image
@@ -168,6 +169,17 @@ def upload_face(employee_id, image_base64=None):
             "message": "No face detected in image"
         }
 
+    # Check image quality
+    quality_result = validate_face_quality(img_np, face_locs[0])
+    
+    if not quality_result["valid"]:
+        return {
+            "status": "error",
+            "message": f"Poor image quality: {', '.join(quality_result['issues'])}",
+            "quality_score": quality_result.get("quality_score", 0),
+            "suggestions": quality_result["issues"]
+        }
+
     encodings = face_encodings(img_np, face_locs)
     if not encodings:
         return {
@@ -295,6 +307,23 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
                 "status": "error",
                 "message": "No face detected in image"
             }
+        
+        # Select best quality face if multiple faces detected
+        if len(face_locs) > 1:
+            best_face = get_best_face_from_multiple(img_np, face_locs)
+            if best_face:
+                face_locs = [best_face]
+            # Also warn about multiple faces
+            frappe.log_error(f"Multiple faces detected in check-in image: {len(face_locs)} faces found")
+        
+        # Validate face quality
+        face_quality = validate_face_quality(img_np, face_locs[0])
+        if not face_quality["valid"]:
+            quality_issues = " and ".join(face_quality["issues"])
+            return {
+                "status": "error", 
+                "message": f"Poor image quality: {quality_issues}"
+            }
 
         # Get face encoding
         face_encs = face_encodings(img_np, face_locs)
@@ -359,8 +388,13 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
 
         # Compare face with known faces
         try:
+            # Get configurable tolerance settings (can be adjusted via Site Config)
+            initial_tolerance = frappe.conf.get("face_recognition_initial_tolerance", 0.7)
+            strict_tolerance = frappe.conf.get("face_recognition_strict_tolerance", 0.55)
+            min_quality_score = frappe.conf.get("face_recognition_min_quality", 60)
+            
             # Ensure we have fresh data for comparison
-            matches = compare_faces(known_encodings, face_encoding, tolerance=0.6)
+            matches = compare_faces(known_encodings, face_encoding, tolerance=initial_tolerance)
             face_distances = face_distance(known_encodings, face_encoding)
             
             # Log comparison details for debugging
@@ -382,10 +416,14 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
         best_match_index = np.argmin(face_distances)
         best_distance = face_distances[best_match_index]
         
-        # Validate that the best match is actually a match and has good confidence
-        if matches[best_match_index] and best_distance < 0.6:
+        # Apply quality-adjusted validation based on image quality
+        quality_bonus = (face_quality["quality_score"] / 100) * 0.1  # Up to 0.1 bonus for high quality
+        adjusted_tolerance = strict_tolerance + quality_bonus
+        
+        # Validate that the best match meets our criteria
+        if matches[best_match_index] and best_distance < adjusted_tolerance:
             recognized_employee = employee_ids[best_match_index]
-            confidence = 1 - best_distance
+            confidence = max(0, min(100, (1 - best_distance) * 100))  # Convert to percentage
             
             # Log recognition for debugging
             frappe.log_error(f"Employee recognized: {recognized_employee}, confidence: {confidence:.2%}, distance: {best_distance:.3f}", "Face Recognition Success")
@@ -747,11 +785,43 @@ def upload_employee_image(employee_id, image_base64, filename="employee_photo.jp
         # Decode base64 image
         import base64
         from io import BytesIO
+        from PIL import Image
+        import numpy as np
         
         if "," in image_base64:
             image_data = base64.b64decode(image_base64.split(",")[1])
         else:
             image_data = base64.b64decode(image_base64)
+
+        # Validate image quality before saving
+        if FACE_RECOGNITION_AVAILABLE:
+            try:
+                img = Image.open(BytesIO(image_data)).convert("RGB")
+                img_np = np.array(img)
+                
+                # Detect face for quality validation
+                face_locs = face_locations(img_np)
+                if not face_locs:
+                    return {
+                        "status": "error",
+                        "message": "No face detected in uploaded image"
+                    }
+                
+                # Check image quality
+                quality_result = validate_face_quality(img_np, face_locs[0])
+                
+                if not quality_result["valid"]:
+                    return {
+                        "status": "error",
+                        "message": f"Poor image quality: {', '.join(quality_result['issues'])}",
+                        "quality_score": quality_result.get("quality_score", 0),
+                        "suggestions": quality_result["issues"]
+                    }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to validate image quality: {str(e)}"
+                }
 
         # Create file in Frappe
         file_doc = frappe.get_doc({

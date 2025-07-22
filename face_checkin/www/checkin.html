@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#1f2937">
-    <title>Employee Check-in Portal</title>
+    <meta name="theme-color" content="#1e40af">
+    <title>Face Check-in System</title>
     <link rel="manifest" href="/assets/face_checkin/manifest.json">
     <link rel="icon" href="/assets/face_checkin/icon-192.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -16,33 +16,80 @@
             box-sizing: border-box;
         }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-            min-height: 100vh;
-            color: #f9fafb;
-            overflow-x: hidden;
+        :root {
+            --primary-blue: #1e40af;
+            --primary-blue-light: #3b82f6;
+            --primary-blue-dark: #1e3a8a;
+            --success-green: #10b981;
+            --success-green-light: #34d399;
+            --error-red: #ef4444;
+            --error-red-light: #f87171;
+            --warning-orange: #f59e0b;
+            --warning-orange-light: #fbbf24;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --white: #ffffff;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --border-radius: 12px;
+            --border-radius-lg: 16px;
+            --border-radius-full: 9999px;
         }
 
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+            min-height: 100vh;
+            color: var(--white);
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Background Pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                              radial-gradient(circle at 75% 75%, rgba(255,255,255,0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header */
         .header {
-            background: rgba(31, 41, 55, 0.95);
+            background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(75, 85, 99, 0.3);
-            padding: 1.5rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1.5rem 0;
             position: sticky;
             top: 0;
             z-index: 100;
         }
 
-        .header-content {
+        .header-container {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 0 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .logo-section {
+        .logo {
             display: flex;
             align-items: center;
             gap: 1rem;
@@ -51,25 +98,27 @@
         .logo-icon {
             width: 48px;
             height: 48px;
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            border-radius: 12px;
+            background: var(--white);
+            color: var(--primary-blue);
+            border-radius: var(--border-radius);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.5rem;
-            color: white;
-        }
-
-        .header h1 {
-            font-size: 1.5rem;
             font-weight: 600;
-            color: #f9fafb;
+            box-shadow: var(--shadow-md);
         }
 
-        .header .subtitle {
+        .logo-text h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-text p {
             font-size: 0.875rem;
-            color: #9ca3af;
-            margin-top: 0.25rem;
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .time-display {
@@ -77,131 +126,158 @@
         }
 
         .current-time {
-            font-size: 1.125rem;
-            font-weight: 500;
-            color: #f9fafb;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--white);
+            margin-bottom: 0.25rem;
         }
 
         .current-date {
             font-size: 0.875rem;
-            color: #9ca3af;
-            margin-top: 0.25rem;
+            color: rgba(255, 255, 255, 0.8);
         }
 
+        /* Main Container */
         .main-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-            display: grid;
-            grid-template-columns: 1fr 400px;
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            display: flex;
+            flex-direction: column;
             gap: 2rem;
-            min-height: calc(100vh - 120px);
         }
 
-        .left-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-
-        .right-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-
+        /* Card Styles */
         .card {
-            background: rgba(31, 41, 55, 0.8);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(75, 85, 99, 0.3);
-            border-radius: 16px;
-            padding: 1.5rem;
-            transition: all 0.3s ease;
+            background: var(--white);
+            color: var(--gray-800);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         .card:hover {
-            border-color: rgba(59, 130, 246, 0.5);
             transform: translateY(-2px);
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
         }
 
         .card-header {
+            padding: 1.5rem;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+            gap: 1rem;
         }
 
         .card-icon {
             width: 40px;
             height: 40px;
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            border-radius: 10px;
+            background: var(--primary-blue);
+            color: var(--white);
+            border-radius: var(--border-radius);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
             font-size: 1.125rem;
         }
 
         .card-title {
-            font-size: 1.125rem;
+            font-size: 1.25rem;
             font-weight: 600;
-            color: #f9fafb;
+            color: var(--gray-800);
         }
 
-        .project-selection {
-            position: relative;
+        .card-content {
+            padding: 2rem;
         }
 
+        /* Project Selection */
         .form-group {
             margin-bottom: 1.5rem;
         }
 
         .form-label {
             display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: #e5e7eb;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-700);
             font-size: 0.875rem;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.05em;
         }
 
         .form-select {
             width: 100%;
-            padding: 0.875rem 1rem;
-            background: rgba(17, 24, 39, 0.8);
-            border: 1px solid rgba(75, 85, 99, 0.5);
-            border-radius: 8px;
-            color: #f9fafb;
+            padding: 1rem;
+            background: var(--white);
+            border: 2px solid var(--gray-200);
+            border-radius: var(--border-radius);
+            color: var(--gray-800);
             font-size: 1rem;
+            font-weight: 500;
             transition: all 0.3s ease;
             appearance: none;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 0.5rem center;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 1rem center;
             background-repeat: no-repeat;
             background-size: 1.5em 1.5em;
-            padding-right: 2.5rem;
+            padding-right: 3rem;
         }
 
         .form-select:focus {
             outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
         }
 
-        .form-select option {
-            background: #1f2937;
-            color: #f9fafb;
+        .project-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success-green);
+            border-radius: var(--border-radius-full);
+            color: var(--success-green);
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        /* Camera Section */
+        .camera-section {
+            text-align: center;
+        }
+
+        /* Inline Project Selection */
+        .project-selection-inline {
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        .project-selection-inline .form-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+            color: var(--gray-700);
+        }
+
+        .project-selection-inline .form-select {
+            margin-bottom: 1rem;
         }
 
         .camera-container {
             position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            display: inline-block;
+            margin-bottom: 2rem;
         }
 
         #video {
@@ -209,165 +285,329 @@
             max-width: 640px;
             height: 400px;
             object-fit: cover;
-            border-radius: 12px;
-            background: rgba(17, 24, 39, 0.8);
-            border: 2px solid rgba(75, 85, 99, 0.3);
-            margin-bottom: 1.5rem;
+            border-radius: var(--border-radius-lg);
+            background: var(--gray-100);
+            border: 3px solid var(--gray-200);
+            box-shadow: var(--shadow-lg);
         }
 
+        .camera-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 3px solid var(--primary-blue);
+            border-radius: var(--border-radius);
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .camera-overlay::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border: 2px dashed rgba(30, 64, 175, 0.5);
+            border-radius: var(--border-radius);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* Employee Display */
+        .employee-display {
+            margin: 1.5rem 0;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--success-green), var(--success-green-light));
+            color: var(--white);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-xl);
+            transform: scale(0.95);
+            opacity: 0;
+            transition: all 0.5s ease;
+        }
+
+        .employee-display.show {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .employee-card {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .employee-avatar {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: var(--border-radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: var(--white);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .employee-details {
+            flex: 1;
+        }
+
+        .employee-name-display {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .employee-id-display {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            opacity: 0.9;
+        }
+
+        .checkin-status {
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius-full);
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: inline-block;
+        }
+
+        /* Controls */
         .controls {
             display: flex;
             gap: 1rem;
-            flex-wrap: wrap;
             justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 2rem;
         }
 
         .btn {
-            padding: 0.875rem 2rem;
+            padding: 1rem 2rem;
             border: none;
-            border-radius: 8px;
-            font-size: 0.875rem;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            letter-spacing: 0.025em;
+            min-width: 160px;
+            justify-content: center;
+            box-shadow: var(--shadow-md);
         }
 
         .btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
         }
 
         .btn:disabled {
-            opacity: 0.5;
+            opacity: 0.6;
             cursor: not-allowed;
-            transform: none;
+            transform: none !important;
         }
 
+        .btn-primary {
+            background: var(--primary-blue);
+            color: var(--white);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-blue-light);
+        }
+
+        .btn-success {
+            background: var(--success-green);
+            color: var(--white);
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: var(--success-green-light);
+        }
+
+        /* Status Panel */
         .status-panel {
-            margin-bottom: 1.5rem;
+            margin-top: 1.5rem;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            transform: translateY(10px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .status-panel.show {
+            transform: translateY(0);
+            opacity: 1;
         }
 
         .status-content {
-            padding: 1rem;
-            border-radius: 8px;
+            padding: 1.25rem;
             font-weight: 500;
+            font-size: 0.875rem;
+            line-height: 1.5;
         }
 
         .status-content.success {
             background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            color: #34d399;
+            border-left: 4px solid var(--success-green);
+            color: var(--success-green);
         }
 
         .status-content.error {
             background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #f87171;
+            border-left: 4px solid var(--error-red);
+            color: var(--error-red);
         }
 
         .status-content.info {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            color: #60a5fa;
+            background: rgba(30, 64, 175, 0.1);
+            border-left: 4px solid var(--primary-blue);
+            color: var(--primary-blue);
         }
 
-        .recent-checkins {
-            flex: 1;
+        .status-content.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid var(--warning-orange);
+            color: var(--warning-orange);
         }
 
-        .checkin-item {
+        /* Footer */
+        .footer {
+            margin-top: 3rem;
+            padding: 2rem 0;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Quick Guide */
+        .quick-guide {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .guide-toggle {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--border-radius);
+            color: var(--white);
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 0.75rem;
-            background: rgba(17, 24, 39, 0.5);
-            border: 1px solid rgba(75, 85, 99, 0.3);
+            justify-content: center;
+            gap: 0.75rem;
+            cursor: pointer;
             transition: all 0.3s ease;
         }
 
-        .checkin-item:hover {
-            background: rgba(17, 24, 39, 0.8);
-            border-color: rgba(75, 85, 99, 0.5);
+        .guide-toggle:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
         }
 
-        .employee-info {
-            flex: 1;
+        .toggle-icon {
+            margin-left: auto;
+            transition: transform 0.3s ease;
         }
 
-        .employee-name {
-            font-weight: 600;
-            color: #f9fafb;
-            margin-bottom: 0.25rem;
+        .toggle-icon.rotated {
+            transform: rotate(180deg);
         }
 
-        .checkin-time {
+        .guide-content {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            margin-top: 1rem;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        .guide-content.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .guide-steps {
+            padding: 1.5rem;
+        }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: var(--gray-50);
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--primary-blue);
+        }
+
+        .step:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-blue);
+            color: var(--white);
+            border-radius: var(--border-radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
             font-size: 0.875rem;
-            color: #9ca3af;
+            flex-shrink: 0;
         }
 
-        .checkin-project {
-            font-size: 0.75rem;
-            color: #6b7280;
+        .step-text {
+            color: var(--gray-700);
+            font-weight: 500;
+            line-height: 1.5;
             margin-top: 0.25rem;
         }
 
-        .log-badge {
-            padding: 0.375rem 0.875rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .log-badge.in {
-            background: rgba(16, 185, 129, 0.2);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .log-badge.out {
-            background: rgba(239, 68, 68, 0.2);
-            color: #f87171;
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-
-        .confidence-badge {
-            background: rgba(59, 130, 246, 0.2);
-            color: #60a5fa;
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            padding: 0.25rem 0.5rem;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            margin-left: 0.5rem;
-        }
-
+        /* Loading Animation */
         .loading {
             display: inline-block;
-            width: 16px;
-            height: 16px;
+            width: 20px;
+            height: 20px;
             border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top: 2px solid #3b82f6;
-            border-radius: 50%;
+            border-top: 2px solid currentColor;
+            border-radius: var(--border-radius-full);
             animation: spin 1s linear infinite;
         }
 
@@ -377,129 +617,116 @@
         }
 
         .hidden {
-            display: none;
+            display: none !important;
         }
 
         .fade-in {
-            animation: fadeIn 0.5s ease-in;
+            animation: fadeIn 0.5s ease-out;
         }
 
         @keyframes fadeIn {
-            0% { opacity: 0; transform: translateY(20px); }
+            0% { opacity: 0; transform: translateY(10px); }
             100% { opacity: 1; transform: translateY(0); }
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 2rem;
-            color: #6b7280;
-        }
-
-        .empty-state i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
-
-        .error-state {
-            text-align: center;
-            padding: 1rem;
-            color: #f87171;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 8px;
-        }
-
-        @media (max-width: 1024px) {
-            .main-container {
-                grid-template-columns: 1fr;
-                gap: 1.5rem;
-            }
-            
-            .right-panel {
-                order: -1;
-            }
-        }
-
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .header-content {
+            .header-container {
                 flex-direction: column;
                 text-align: center;
                 gap: 1rem;
+                padding: 0 1rem;
             }
             
             .main-container {
-                padding: 1rem;
+                padding: 0 1rem;
+                margin: 1rem auto;
             }
             
-            .card {
-                padding: 1rem;
+            .card-content {
+                padding: 1.5rem;
             }
             
             #video {
                 height: 300px;
             }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .btn {
+                min-width: unset;
+            }
+            
+            .employee-card {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .employee-avatar {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
+            }
+            
+            .footer-container {
+                padding: 0 1rem;
+            }
+            
+            .step {
+                flex-direction: column;
+                text-align: center;
+                align-items: center;
+                gap: 0.75rem;
+            }
         }
 
-        .pulse {
-            animation: pulse 2s infinite;
+        @media (max-width: 480px) {
+            .header-container {
+                padding: 0 1rem;
+            }
+            
+            .logo-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.25rem;
+            }
+            
+            .logo-text h1 {
+                font-size: 1.25rem;
+            }
+            
+            .current-time {
+                font-size: 1.25rem;
+            }
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .project-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            border-radius: 20px;
-            color: #34d399;
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-top: 1rem;
-        }
-
-        .instructions {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .instructions h4 {
-            color: #60a5fa;
-            margin-bottom: 0.5rem;
-            font-size: 0.875rem;
+        /* Confidence Badge */
+        .confidence-badge {
+            background: rgba(30, 64, 175, 0.1);
+            color: var(--primary-blue);
+            border: 1px solid rgba(30, 64, 175, 0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--border-radius-full);
+            font-size: 0.75rem;
             font-weight: 600;
-        }
-
-        .instructions ol {
-            color: #9ca3af;
-            font-size: 0.875rem;
-            padding-left: 1.25rem;
-        }
-
-        .instructions li {
-            margin-bottom: 0.25rem;
+            margin-left: 0.5rem;
         }
     </style>
 </head>
 <body>
+    <!-- Header -->
     <div class="header">
-        <div class="header-content">
-            <div class="logo-section">
+        <div class="header-container">
+            <div class="logo">
                 <div class="logo-icon">
-                    <i class="fas fa-user-check"></i>
+                    <i class="fas fa-face-smile"></i>
                 </div>
-                <div>
-                    <h1>Employee Check-in Portal</h1>
-                    <div class="subtitle">Facial Recognition Attendance System</div>
+                <div class="logo-text">
+                    <h1>Face Check-in System</h1>
+                    <p>Secure • Fast • Reliable</p>
                 </div>
             </div>
             <div class="time-display">
@@ -509,83 +736,99 @@
         </div>
     </div>
 
+    <!-- Main Container -->
     <div class="main-container">
-        <div class="left-panel">
-            <!-- Project Selection -->
-            <div class="card project-selection">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-project-diagram"></i>
-                    </div>
-                    <div class="card-title">Project Selection</div>
+        <!-- Face Check-in Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-user-check"></i>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="projectSelect">Choose Active Project</label>
-                    <select class="form-select" id="projectSelect" required>
-                        <option value="">Loading projects...</option>
-                    </select>
-                    <div class="project-status hidden" id="projectStatus">
-                        <i class="fas fa-check-circle"></i>
-                        <span id="selectedProjectName"></span>
-                    </div>
-                </div>
+                <h2 class="card-title">Employee Face Check-in</h2>
             </div>
-
-            <!-- Camera Section -->
-            <div class="card camera-container">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-camera"></i>
+            <div class="card-content camera-section">
+                <!-- Project Selection -->
+                <div class="project-selection-inline">
+                    <div class="form-group">
+                        <label class="form-label" for="projectSelect">
+                            <i class="fas fa-briefcase"></i> Select Active Project
+                        </label>
+                        <select class="form-select" id="projectSelect" required>
+                            <option value="">Loading projects...</option>
+                        </select>
+                        <div class="project-status hidden" id="projectStatus">
+                            <i class="fas fa-check-circle"></i>
+                            <span id="selectedProjectName"></span>
+                        </div>
                     </div>
-                    <div class="card-title">Face Recognition</div>
-                </div>
-                
-                <div class="instructions">
-                    <h4><i class="fas fa-info-circle"></i> How to Check In</h4>
-                    <ol>
-                        <li>Select your project from the dropdown above</li>
-                        <li>Click "Start Camera" to activate face recognition</li>
-                        <li>Position your face clearly in the camera frame</li>
-                        <li>Click "Scan Face" when ready</li>
-                    </ol>
                 </div>
 
-                <video id="video" autoplay muted playsinline></video>
+                <div class="camera-container">
+                    <video id="video" autoplay muted playsinline></video>
+                    <div class="camera-overlay"></div>
+                </div>
+
+                <!-- Employee Info Display -->
+                <div class="employee-display hidden" id="employeeDisplay">
+                    <div class="employee-card">
+                        <div class="employee-avatar">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="employee-details">
+                            <div class="employee-name-display" id="employeeNameDisplay"></div>
+                            <div class="employee-id-display" id="employeeIdDisplay"></div>
+                            <div class="checkin-status" id="checkinStatusDisplay"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="controls">
                     <button class="btn btn-primary" id="startCamera">
-                        <i class="fas fa-camera"></i>
+                        <i class="fas fa-video"></i>
                         Start Camera
                     </button>
                     <button class="btn btn-success" id="captureBtn" disabled>
-                        <i class="fas fa-user-check"></i>
+                        <i class="fas fa-scan"></i>
                         Scan Face
                     </button>
                 </div>
-            </div>
 
-            <!-- Status Panel -->
-            <div class="card status-panel hidden" id="statusPanel">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-info-circle"></i>
-                    </div>
-                    <div class="card-title">Status</div>
+                <!-- Status Panel -->
+                <div class="status-panel hidden" id="statusPanel">
+                    <div class="status-content" id="statusContent"></div>
                 </div>
-                <div class="status-content" id="statusContent"></div>
             </div>
         </div>
+    </div>
 
-        <div class="right-panel">
-            <!-- Recent Check-ins -->
-            <div class="card recent-checkins">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-history"></i>
+    <!-- Footer with Collapsible Quick Start Guide -->
+    <div class="footer">
+        <div class="footer-container">
+            <div class="quick-guide">
+                <button class="guide-toggle" id="guideToggle">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Quick Start Guide</span>
+                    <i class="fas fa-chevron-up toggle-icon" id="toggleIcon"></i>
+                </button>
+                <div class="guide-content hidden" id="guideContent">
+                    <div class="guide-steps">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-text">Select your active project from the dropdown</div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-text">Click "Start Camera" to activate the scanner</div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-text">Position your face within the blue frame</div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">4</div>
+                            <div class="step-text">Click "Scan Face" to check in/out</div>
+                        </div>
                     </div>
-                    <div class="card-title">Today's Check-ins</div>
-                </div>
-                <div id="recentCheckins">
-                    <div class="loading pulse"></div>
                 </div>
             </div>
         </div>
@@ -604,7 +847,10 @@
                 this.captureBtn = document.getElementById('captureBtn');
                 this.statusPanel = document.getElementById('statusPanel');
                 this.statusContent = document.getElementById('statusContent');
-                this.recentCheckins = document.getElementById('recentCheckins');
+                this.employeeDisplay = document.getElementById('employeeDisplay');
+                this.employeeNameDisplay = document.getElementById('employeeNameDisplay');
+                this.employeeIdDisplay = document.getElementById('employeeIdDisplay');
+                this.checkinStatusDisplay = document.getElementById('checkinStatusDisplay');
                 
                 this.stream = null;
                 this.isProcessing = false;
@@ -625,14 +871,39 @@
                 this.projectSelect.addEventListener('change', () => {
                     this.selectedProject = this.projectSelect.value;
                     this.updateProjectStatus();
-                    this.loadRecentCheckins();
                 });
                 
                 this.startCameraBtn.addEventListener('click', () => this.startCamera());
                 this.captureBtn.addEventListener('click', () => this.captureAndRecognize());
                 
-                this.loadRecentCheckins();
-                setInterval(() => this.loadRecentCheckins(), 30000); // Refresh every 30 seconds
+                // Initialize collapsible guide
+                this.initGuide();
+            }
+            
+            initGuide() {
+                const guideToggle = document.getElementById('guideToggle');
+                const guideContent = document.getElementById('guideContent');
+                const toggleIcon = document.getElementById('toggleIcon');
+                
+                guideToggle.addEventListener('click', () => {
+                    const isHidden = guideContent.classList.contains('hidden');
+                    
+                    if (isHidden) {
+                        // Show guide
+                        guideContent.classList.remove('hidden');
+                        setTimeout(() => {
+                            guideContent.classList.add('show');
+                        }, 10);
+                        toggleIcon.classList.add('rotated');
+                    } else {
+                        // Hide guide
+                        guideContent.classList.remove('show');
+                        setTimeout(() => {
+                            guideContent.classList.add('hidden');
+                        }, 300);
+                        toggleIcon.classList.remove('rotated');
+                    }
+                });
             }
 
             async checkSystemStatus() {
@@ -649,7 +920,7 @@
                             <i class="fas fa-exclamation-triangle"></i> 
                             <strong>Face Recognition Not Available</strong><br>
                             Required dependencies are not installed.<br>
-                            <a href="/setup" style="color: #60a5fa; text-decoration: underline;">
+                            <a href="/setup" style="color: var(--primary-blue); text-decoration: underline;">
                                 Visit setup guide for installation instructions
                             </a>
                         `);
@@ -698,7 +969,7 @@
                     
                 } catch (error) {
                     console.error('Error accessing camera:', error);
-                    this.showStatus('error', 'Failed to access camera. Please check permissions.');
+                    this.showStatus('error', '<i class="fas fa-camera-slash"></i> Failed to access camera. Please check permissions and try again.');
                 }
             }
             
@@ -706,38 +977,99 @@
                 if (this.isProcessing) return;
                 
                 if (!this.selectedProject) {
-                    this.showStatus('error', '❌ Please select a project first');
+                    this.showStatus('warning', '<i class="fas fa-exclamation-triangle"></i> Please select a project first');
                     return;
                 }
                 
                 this.isProcessing = true;
                 this.captureBtn.disabled = true;
-                this.captureBtn.innerHTML = '<span class="loading"></span> Recognizing...';
+                this.captureBtn.innerHTML = '<span class="loading"></span> Scanning...';
                 
                 try {
                     const imageData = this.captureFrame();
                     const result = await this.recognizeEmployee(imageData);
                     
                     if (result.status === 'success') {
+                        // Display employee info
+                        this.displayEmployeeInfo(result);
+                        
+                        // Show success status
                         this.showStatus('success', 
-                            `<i class="fas fa-check-circle"></i> ${result.message}<br>
-                            <strong>${result.employee_name}</strong><br>
-                            <span class="log-badge ${result.log_type.toLowerCase()}">${result.log_type}</span>
-                            <span class="confidence-badge">${result.confidence}% match</span>`
+                            `<i class="fas fa-check-circle"></i> <strong>Check-in successful!</strong><br>
+                            Welcome, ${result.employee_name}<br>
+                            <span class="confidence-badge">${result.confidence}% match confidence</span>`
                         );
-                        this.loadRecentCheckins(); // Refresh the list
                     } else {
-                        this.showStatus('error', `<i class="fas fa-exclamation-circle"></i> ${result.message}`);
+                        // Handle different types of errors with user-friendly messages
+                        let errorMessage = result.message || 'Recognition failed';
+                        let errorIcon = 'fas fa-exclamation-circle';
+                        
+                        // Check for specific error types from the backend
+                        if (errorMessage.toLowerCase().includes('employee not recognized')) {
+                            errorMessage = 'Face not matching - Employee not recognized';
+                            errorIcon = 'fas fa-user-slash';
+                        } else if (errorMessage.toLowerCase().includes('no face detected')) {
+                            errorMessage = 'No face detected - Please position yourself clearly in the camera frame';
+                            errorIcon = 'fas fa-user-times';
+                        } else if (errorMessage.toLowerCase().includes('no face embeddings found')) {
+                            errorMessage = 'No employee faces registered - Please contact administrator';
+                            errorIcon = 'fas fa-database';
+                        } else if (errorMessage.toLowerCase().includes('employee image file not found')) {
+                            errorMessage = 'Employee face data not found - Please re-register your face';
+                            errorIcon = 'fas fa-user-slash';
+                        } else if (errorMessage.toLowerCase().includes('multiple faces')) {
+                            errorMessage = 'Multiple faces detected - Please ensure only one person is in frame';
+                            errorIcon = 'fas fa-users';
+                        } else if (errorMessage.toLowerCase().includes('poor quality') ||
+                                   errorMessage.toLowerCase().includes('blurry') ||
+                                   errorMessage.toLowerCase().includes('low quality')) {
+                            errorMessage = 'Image quality too low - Please move closer to camera';
+                            errorIcon = 'fas fa-camera';
+                        } else if (errorMessage.toLowerCase().includes('no face') || 
+                                   errorMessage.toLowerCase().includes('face not found') ||
+                                   errorMessage.toLowerCase().includes('not found') ||
+                                   errorMessage.toLowerCase().includes('no match') ||
+                                   errorMessage.toLowerCase().includes('not recognized') ||
+                                   errorMessage.toLowerCase().includes('unknown')) {
+                            errorMessage = 'Face not matching - Please try again';
+                            errorIcon = 'fas fa-user-slash';
+                        } else if (errorMessage.toLowerCase().includes('confidence') ||
+                                   errorMessage.toLowerCase().includes('threshold')) {
+                            errorMessage = 'Face not matching - Recognition confidence too low';
+                            errorIcon = 'fas fa-user-slash';
+                        }
+                        
+                        this.showStatus('error', `<i class="${errorIcon}"></i> ${errorMessage}`);
                     }
                     
                 } catch (error) {
                     console.error('Recognition error:', error);
-                    this.showStatus('error', '❌ System error during recognition');
+                    this.showStatus('error', '<i class="fas fa-exclamation-circle"></i> System error during recognition. Please try again.');
                 } finally {
                     this.isProcessing = false;
                     this.captureBtn.disabled = false;
-                    this.captureBtn.innerHTML = '<i class="fas fa-user-check"></i> Scan Face';
+                    this.captureBtn.innerHTML = '<i class="fas fa-scan"></i> Scan Face';
                 }
+            }
+            
+            displayEmployeeInfo(result) {
+                this.employeeNameDisplay.textContent = result.employee_name || 'Unknown Employee';
+                this.employeeIdDisplay.textContent = `Employee ID: ${result.employee_id || 'N/A'}`;
+                this.checkinStatusDisplay.textContent = `${result.log_type} at ${new Date().toLocaleTimeString()}`;
+                
+                // Show the employee display with animation
+                this.employeeDisplay.classList.remove('hidden');
+                setTimeout(() => {
+                    this.employeeDisplay.classList.add('show');
+                }, 50);
+                
+                // Hide after 5 seconds
+                setTimeout(() => {
+                    this.employeeDisplay.classList.remove('show');
+                    setTimeout(() => {
+                        this.employeeDisplay.classList.add('hidden');
+                    }, 500);
+                }, 5000);
             }
             
             captureFrame() {
@@ -767,7 +1099,7 @@
                     }
                     
                     const data = await response.json();
-                    console.log('Projects response:', data); // Debug logging
+                    console.log('Projects response:', data);
                     
                     this.projectSelect.innerHTML = '<option value="">Select a project...</option>';
                     
@@ -789,81 +1121,13 @@
                         console.error('Project loading error:', responseData.message);
                     } else {
                         this.projectSelect.innerHTML = '<option value="">No projects available</option>';
-                        this.showStatus('warning', '<i class="fas fa-exclamation-triangle"></i> No projects found. Please create projects in ERPNext first.');
+                        this.showStatus('warning', '<i class="fas fa-folder-open"></i> No projects found. Please create projects in ERPNext first.');
                         console.warn('No projects found in response:', responseData);
-                        
-                        // Add debug option for System Managers
-                        this.addDebugOption();
                     }
                 } catch (error) {
                     console.error('Error loading projects:', error);
                     this.projectSelect.innerHTML = '<option value="">Error loading projects</option>';
-                    this.showStatus('error', `<i class="fas fa-exclamation-triangle"></i> Failed to load projects: ${error.message}`);
-                }
-            }
-            
-            addDebugOption() {
-                // Add debug button for troubleshooting (only for System Managers)
-                const debugContainer = document.createElement('div');
-                debugContainer.style.marginTop = '10px';
-                debugContainer.innerHTML = `
-                    <button class="btn btn-primary" onclick="window.faceApp.debugProjects()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
-                        <i class="fas fa-bug"></i> Debug Projects
-                    </button>
-                `;
-                
-                const projectSection = document.querySelector('.project-selection .form-group');
-                if (projectSection && !projectSection.querySelector('.debug-container')) {
-                    debugContainer.className = 'debug-container';
-                    projectSection.appendChild(debugContainer);
-                }
-            }
-            
-            async debugProjects() {
-                try {
-                    const response = await fetch('/api/method/face_checkin.api.face_api.debug_project_status', {
-                        headers: {
-                            'X-Frappe-CSRF-Token': frappe.csrf_token
-                        }
-                    });
-                    
-                    const data = await response.json();
-                    const debugInfo = data.message || data;
-                    
-                    if (debugInfo.error) {
-                        this.showStatus('error', `Debug Error: ${debugInfo.error}`);
-                        return;
-                    }
-                    
-                    let debugMessage = `
-                        <strong>🔍 Project Debug Information:</strong><br><br>
-                        <strong>User:</strong> ${debugInfo.user}<br>
-                        <strong>Roles:</strong> ${debugInfo.roles ? debugInfo.roles.join(', ') : 'None'}<br>
-                        <strong>Project DocType Exists:</strong> ${debugInfo.project_doctype_exists ? '✅ Yes' : '❌ No'}<br>
-                        <strong>Total Projects:</strong> ${debugInfo.project_count}<br>
-                        <strong>Can Read Projects:</strong> ${debugInfo.can_read_project ? '✅ Yes' : '❌ No'}<br>
-                    `;
-                    
-                    if (debugInfo.sample_projects && debugInfo.sample_projects.length > 0) {
-                        debugMessage += '<br><strong>Sample Projects:</strong><br>';
-                        debugInfo.sample_projects.forEach(project => {
-                            debugMessage += `• ${project.project_name || project.name} (${project.name}) - Status: ${project.status || 'None'} - Disabled: ${project.disabled || 0}<br>`;
-                        });
-                    }
-                    
-                    if (debugInfo.error_details && debugInfo.error_details.length > 0) {
-                        debugMessage += '<br><strong>⚠️ Errors:</strong><br>';
-                        debugInfo.error_details.forEach(error => {
-                            debugMessage += `• ${error}<br>`;
-                        });
-                    }
-                    
-                    this.showStatus('info', debugMessage);
-                    console.log('Full debug info:', debugInfo);
-                    
-                } catch (error) {
-                    console.error('Debug error:', error);
-                    this.showStatus('error', `Debug failed: ${error.message}`);
+                    this.showStatus('error', `<i class="fas fa-wifi-slash"></i> Failed to load projects: ${error.message}`);
                 }
             }
 
@@ -898,71 +1162,19 @@
                 return data.message;
             }
             
-            async loadRecentCheckins() {
-                try {
-                    let url = '/api/method/face_checkin.api.face_api.get_checkin_status';
-                    if (this.selectedProject) {
-                        url += `?project=${encodeURIComponent(this.selectedProject)}`;
-                    }
-                    
-                    const response = await fetch(url, {
-                        headers: {
-                            'X-Frappe-CSRF-Token': frappe.csrf_token
-                        }
-                    });
-                    const data = await response.json();
-                    
-                    if (data.message && data.message.recent_checkins) {
-                        this.displayRecentCheckins(data.message.recent_checkins);
-                    }
-                } catch (error) {
-                    console.error('Error loading recent checkins:', error);
-                }
-            }
-            
-            displayRecentCheckins(checkins) {
-                if (!checkins || checkins.length === 0) {
-                    this.recentCheckins.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-clock"></i>
-                            <div>No check-ins today</div>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                const html = checkins.map(checkin => `
-                    <div class="checkin-item">
-                        <div class="employee-info">
-                            <div class="employee-name">${checkin.employee_name}</div>
-                            <div class="checkin-time">
-                                <i class="fas fa-clock"></i>
-                                ${new Date(checkin.time).toLocaleTimeString()}
-                            </div>
-                            ${checkin.custom_project ? `
-                                <div class="checkin-project">
-                                    <i class="fas fa-project-diagram"></i>
-                                    ${checkin.custom_project}
-                                </div>
-                            ` : ''}
-                        </div>
-                        <span class="log-badge ${checkin.log_type.toLowerCase()}">${checkin.log_type}</span>
-                    </div>
-                `).join('');
-                
-                this.recentCheckins.innerHTML = html;
-            }
-            
             showStatus(type, message) {
                 this.statusContent.className = `status-content ${type}`;
                 this.statusContent.innerHTML = message;
                 this.statusPanel.classList.remove('hidden');
-                this.statusPanel.classList.add('fade-in');
+                this.statusPanel.classList.add('show', 'fade-in');
                 
-                // Auto-hide after 5 seconds
+                // Auto-hide after 6 seconds
                 setTimeout(() => {
-                    this.statusPanel.classList.add('hidden');
-                }, 5000);
+                    this.statusPanel.classList.remove('show');
+                    setTimeout(() => {
+                        this.statusPanel.classList.add('hidden');
+                    }, 300);
+                }, 6000);
             }
         }
         
