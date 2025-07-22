@@ -199,6 +199,9 @@ def bulk_enroll_from_employee_images():
     
     embedding_dir = get_embedding_directory()
 
+    # Clear employee cache to ensure fresh data
+    frappe.clear_cache(doctype="Employee")
+    
     employees_with_images = frappe.db.sql("""
         SELECT name, employee_name, image 
         FROM `tabEmployee` 
@@ -303,10 +306,14 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
 
         face_encoding = face_encs[0]
 
-        # Load all known employee faces
+        # Load all known employee faces (reset arrays for each recognition)
         known_encodings = []
         employee_ids = []
         failed_loadings = []
+        
+        # Clear any previous data to prevent cross-contamination
+        import gc
+        gc.collect()
         
         for filename in os.listdir(embedding_dir):
             if filename.endswith('.npy'):
@@ -352,8 +359,12 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
 
         # Compare face with known faces
         try:
+            # Ensure we have fresh data for comparison
             matches = compare_faces(known_encodings, face_encoding, tolerance=0.6)
             face_distances = face_distance(known_encodings, face_encoding)
+            
+            # Log comparison details for debugging
+            frappe.log_error(f"Face comparison: {len(matches)} total matches, distances: {face_distances[:5] if len(face_distances) > 5 else face_distances}", "Face Recognition Debug")
             
         except Exception as compare_error:
             return {
@@ -369,11 +380,18 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
 
         # Get the best match
         best_match_index = np.argmin(face_distances)
-        if matches[best_match_index]:
+        best_distance = face_distances[best_match_index]
+        
+        # Validate that the best match is actually a match and has good confidence
+        if matches[best_match_index] and best_distance < 0.6:
             recognized_employee = employee_ids[best_match_index]
-            confidence = 1 - face_distances[best_match_index]
+            confidence = 1 - best_distance
             
-            # Get employee details
+            # Log recognition for debugging
+            frappe.log_error(f"Employee recognized: {recognized_employee}, confidence: {confidence:.2%}, distance: {best_distance:.3f}", "Face Recognition Success")
+            
+            # Get employee details (force reload to avoid cache issues)
+            frappe.clear_document_cache("Employee", recognized_employee)
             employee = frappe.get_doc("Employee", recognized_employee)
             
             # Determine log type if not provided
@@ -819,6 +837,27 @@ def delete_face_data(employee_id):
         return {
             "status": "error",
             "message": f"Failed to delete face data: {str(e)}"
+        }
+
+@frappe.whitelist()
+def clear_employee_cache():
+    """
+    Clear all employee document cache to force refresh of employee data
+    """
+    try:
+        # Clear all employee caches
+        frappe.clear_cache(doctype="Employee")
+        
+        return {
+            "status": "success",
+            "message": "Employee cache cleared successfully"
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error clearing employee cache: {str(e)}", "Employee Cache Clear Error")
+        return {
+            "status": "error",
+            "message": f"Failed to clear employee cache: {str(e)}"
         }
 
 @frappe.whitelist()
