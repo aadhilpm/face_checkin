@@ -23,9 +23,10 @@ def after_install():
         print(f"Installation error: {str(e)}")
 
 def create_face_embeddings_directory():
-    """Create directory for storing face embeddings"""
+    """Create directory for storing face embeddings in site directory to persist across updates"""
     try:
-        embedding_dir = frappe.get_app_path('face_checkin', 'face_store', 'embeddings')
+        # Store in site private files to persist across app updates
+        embedding_dir = os.path.join(frappe.get_site_path(), 'private', 'files', 'face_embeddings')
         if not os.path.exists(embedding_dir):
             os.makedirs(embedding_dir, exist_ok=True)
             print(f"Created face embeddings directory: {embedding_dir}")

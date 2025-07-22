@@ -33,18 +33,12 @@ except ImportError as e:
 def get_embedding_directory():
     """
     Get the embedding directory with fallback options
+    Prioritizes site directory to persist across app updates
     """
     # List of possible embedding directories in order of preference
     possible_paths = []
     
-    try:
-        # Try the standard app path first
-        app_embedding_dir = frappe.get_app_path('face_checkin', 'face_store', 'embeddings')
-        possible_paths.append(app_embedding_dir)
-    except:
-        pass
-    
-    # Add fallback paths
+    # Add site paths first to persist across app updates
     try:
         site_path = frappe.get_site_path()
         possible_paths.extend([
@@ -52,6 +46,13 @@ def get_embedding_directory():
             os.path.join(site_path, 'public', 'files', 'face_embeddings'),
             os.path.join(site_path, 'face_embeddings')
         ])
+    except:
+        pass
+    
+    try:
+        # App path as fallback (will be cleared on updates)
+        app_embedding_dir = frappe.get_app_path('face_checkin', 'face_store', 'embeddings')
+        possible_paths.append(app_embedding_dir)
     except:
         pass
     
@@ -68,9 +69,9 @@ def get_embedding_directory():
             except:
                 continue
     
-    # If no existing directories with content found, create and return the app path
+    # If no existing directories with content found, create and return the first site path
     if possible_paths:
-        default_path = possible_paths[0]
+        default_path = possible_paths[0]  # Site private files directory
         try:
             os.makedirs(default_path, exist_ok=True)
             return default_path
