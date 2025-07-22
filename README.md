@@ -132,6 +132,5 @@ MIT License
 ## Support
 
 - Issues: [GitHub Issues](https://github.com/aadhilpm/face_checkin/issues)
-- Email: aadhil@badeeltechnology.com
 
-Built by [Aadhil Badeel Technology](mailto:aadhil@badeeltechnology.com)
+Built by Aadhil Badeel Technology
