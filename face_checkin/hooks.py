@@ -1,8 +1,8 @@
 app_name = "face_checkin"
 app_title = "Face Checkin"
-app_publisher = "Your Company"
+app_publisher = "Aadhil Badeel Technology"
 app_description = "Employee attendance tracking using facial recognition"
-app_email = "support@yourcompany.com"
+app_email = "aadhil@badeeltechnology.com"
 app_license = "MIT"
 app_version = "1.0.0"
 
