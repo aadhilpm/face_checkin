@@ -7,6 +7,7 @@
     <title>Offline - Face Check-in System</title>
     <link rel="manifest" href="/assets/face_checkin/manifest.json">
     <link rel="icon" href="/assets/face_checkin/icon-192.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -106,9 +107,10 @@
         }
 
         .feature-list li:before {
-            content: "✓";
+            content: "\f00c";
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
             color: #10b981;
-            font-weight: bold;
         }
 
         .retry-btn {
@@ -200,10 +202,10 @@
 </head>
 <body>
     <div class="offline-container">
-        <div class="offline-icon">📱</div>
+        <div class="offline-icon"><i class="fas fa-mobile-alt"></i></div>
         
         <div class="status-indicator">
-            <span id="connection-indicator">🔴</span>
+            <span id="connection-indicator"><i class="fas fa-circle" style="color: #ef4444;"></i></span>
             <span id="connection-text">No Internet Connection</span>
         </div>
         
@@ -221,16 +223,16 @@
         </div>
 
         <button class="retry-btn" onclick="checkConnection()">
-            <span id="retry-icon">🔄</span>
+            <span id="retry-icon"><i class="fas fa-sync-alt"></i></span>
             Try Again
         </button>
         
         <a href="/checkin" class="secondary-btn">
-            📋 Go to Check-in
+            <i class="fas fa-clipboard-check"></i> Go to Check-in
         </a>
         
         <a href="/employee-images" class="secondary-btn">
-            👥 Employee Management
+            <i class="fas fa-users"></i> Employee Management
         </a>
 
         <div class="connection-status">
@@ -251,10 +253,10 @@
             const retryIcon = document.getElementById('retry-icon');
             
             if (isOnline) {
-                indicator.textContent = '🟢';
+                indicator.innerHTML = '<i class="fas fa-circle" style="color: #10b981;"></i>';
                 text.textContent = 'Connection Restored';
                 status.textContent = 'Online';
-                retryIcon.textContent = '✅';
+                retryIcon.innerHTML = '<i class="fas fa-check"></i>';
                 
                 // Update last online time
                 lastOnlineTime = new Date().toLocaleString();
@@ -265,10 +267,10 @@
                     window.location.reload();
                 }, 2000);
             } else {
-                indicator.textContent = '🔴';
+                indicator.innerHTML = '<i class="fas fa-circle" style="color: #ef4444;"></i>';
                 text.textContent = 'No Internet Connection';
                 status.textContent = 'Offline';
-                retryIcon.textContent = '🔄';
+                retryIcon.innerHTML = '<i class="fas fa-sync-alt"></i>';
             }
             
             document.getElementById('last-online').textContent = lastOnlineTime;
@@ -279,7 +281,7 @@
             const retryIcon = document.getElementById('retry-icon');
             
             retryBtn.disabled = true;
-            retryIcon.textContent = '⏳';
+            retryIcon.innerHTML = '<i class="fas fa-hourglass-half"></i>';
             
             // Force a network request to check connectivity
             fetch('/api/method/face_checkin.api.face_api.check_system_status', {
@@ -291,7 +293,7 @@
             }).catch(() => {
                 setTimeout(() => {
                     retryBtn.disabled = false;
-                    retryIcon.textContent = '🔄';
+                    retryIcon.innerHTML = '<i class="fas fa-sync-alt"></i>';
                 }, 2000);
             });
         }

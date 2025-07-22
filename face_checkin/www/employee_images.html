@@ -7,6 +7,7 @@
     <title>Employee Image Management</title>
     <link rel="manifest" href="/assets/face_checkin/manifest.json">
     <link rel="icon" href="/assets/face_checkin/icon-192.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -459,7 +460,7 @@
         <!-- Instructions Card -->
         <div class="card">
             <div class="card-header">
-                <div class="card-icon">ℹ</div>
+                <div class="card-icon"><i class="fas fa-info-circle"></i></div>
                 <div class="card-title">How to Add Employee Images</div>
             </div>
 
@@ -483,7 +484,7 @@
                 <h3>Upload Employee Image</h3>
                 <p>In the employee form, find the <strong>Image</strong> field and click <strong>Attach</strong> to upload a photo:</p>
                 <div class="info-box">
-                    💡 <strong>Best Practices:</strong>
+                    <i class="fas fa-lightbulb"></i> <strong>Best Practices:</strong>
                     <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
                         <li>Use clear, well-lit photos</li>
                         <li>Employee should face the camera directly</li>
@@ -504,19 +505,19 @@
         <!-- Current Employees Card -->
         <div class="card">
             <div class="card-header">
-                <div class="card-icon">👥</div>
+                <div class="card-icon"><i class="fas fa-users"></i></div>
                 <div class="card-title">Current Employees</div>
             </div>
 
             <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
                 <button class="btn" onclick="loadEmployees()">
-                    🔄 Refresh List
+                    <i class="fas fa-sync-alt"></i> Refresh List
                 </button>
                 <button class="btn btn-success" onclick="bulkEnroll()">
-                    ⚡ Bulk Enroll All
+                    <i class="fas fa-bolt"></i> Bulk Enroll All
                 </button>
                 <button class="btn btn-danger" onclick="bulkDeleteFaceData()">
-                    🗑️ Delete All Face Data
+                    <i class="fas fa-trash-alt"></i> Delete All Face Data
                 </button>
             </div>
 
@@ -560,12 +561,12 @@
 
                 <div class="upload-options">
                     <div class="upload-option" id="cameraOption" onclick="selectUploadMethod('camera')">
-                        📷
+                        <i class="fas fa-camera"></i>
                         <h4>Take Photo</h4>
                         <p>Use camera to capture image</p>
                     </div>
                     <div class="upload-option" id="fileOption" onclick="selectUploadMethod('file')">
-                        📁
+                        <i class="fas fa-folder-open"></i>
                         <h4>Upload File</h4>
                         <p>Select image from device</p>
                     </div>
@@ -576,10 +577,10 @@
                     <video class="camera-video" id="modalVideo" autoplay muted playsinline></video>
                     <div style="text-align: center; margin: 1rem 0;">
                         <button class="btn" id="startCameraBtn" onclick="startModalCamera()">
-                            📷 Start Camera
+                            <i class="fas fa-camera"></i> Start Camera
                         </button>
                         <button class="btn btn-success" id="capturePhotoBtn" onclick="capturePhoto()" disabled>
-                            📸 Capture Photo
+                            <i class="fas fa-camera-retro"></i> Capture Photo
                         </button>
                     </div>
                 </div>
@@ -587,7 +588,7 @@
                 <!-- File Upload Section -->
                 <div class="file-upload-area hidden" id="fileSection">
                     <div onclick="document.getElementById('fileInput').click()">
-                        <div style="font-size: 3rem; color: #3b82f6; margin-bottom: 1rem;">☁️</div>
+                        <div style="font-size: 3rem; color: #3b82f6; margin-bottom: 1rem;"><i class="fas fa-cloud-upload-alt"></i></div>
                         <h4 style="margin-bottom: 0.5rem; color: #1e293b;">Drop image here or click to browse</h4>
                         <p style="color: #64748b;">Supports JPG, PNG files</p>
                     </div>
@@ -600,10 +601,10 @@
                     <img id="previewImage" class="preview-image">
                     <div style="text-align: center; margin-top: 1rem;">
                         <button class="btn btn-success" id="uploadBtn" onclick="uploadToEmployee()">
-                            ⬆️ Upload to Employee Record
+                            <i class="fas fa-upload"></i> Upload to Employee Record
                         </button>
                         <button class="btn" onclick="resetUpload()" style="background: #64748b;">
-                            🔄 Try Again
+                            <i class="fas fa-sync-alt"></i> Try Again
                         </button>
                     </div>
                     
@@ -709,8 +710,8 @@
                 card.innerHTML = `
                     ${hasImage 
                         ? `<img src="${employee.image}" alt="${employee.employee_name}" class="employee-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                           <div class="no-image" style="display: none;">👤</div>`
-                        : `<div class="no-image">👤</div>`
+                           <div class="no-image" style="display: none;"><i class="fas fa-user"></i></div>`
+                        : `<div class="no-image"><i class="fas fa-user"></i></div>`
                     }
                     <div class="employee-name">${employee.employee_name || employee.name}</div>
                     <div class="employee-id">${employee.name}</div>
@@ -720,29 +721,29 @@
                         </span>
                         ${hasImage ? `
                             <span class="status-badge ${enrollmentComplete ? 'status-enrolled' : 'status-no-image'}" style="margin-top: 0.5rem; display: block;">
-                                ${enrollmentComplete ? '✓ Face Data Ready' : '⚠ Face Data Pending'}
+                                ${enrollmentComplete ? '<i class="fas fa-check"></i> Face Data Ready' : '<i class="fas fa-exclamation-triangle"></i> Face Data Pending'}
                             </span>
                         ` : ''}
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                         <a href="/app/employee/${employee.name}" class="btn" target="_blank" style="justify-content: center; margin: 0;">
-                            ✏️ Edit Employee
+                            <i class="fas fa-edit"></i> Edit Employee
                         </a>
                         ${hasImage ? `
                             <button class="btn reupload-btn" onclick="reuploadImage('${employee.name}', '${employee.employee_name || employee.name}')" style="justify-content: center; margin: 0;">
-                                📷 Reupload Image
+                                <i class="fas fa-camera"></i> Reupload Image
                             </button>
                             <button class="btn ${enrollmentComplete ? '' : 'btn-success'}" onclick="enrollEmployee('${employee.name}')" style="justify-content: center; margin: 0; ${enrollmentComplete ? 'background: #64748b;' : ''}">
-                                ⚡ ${enrollmentComplete ? 'Recreate Face Data' : 'Create Face Data'}
+                                <i class="fas fa-bolt"></i> ${enrollmentComplete ? 'Recreate Face Data' : 'Create Face Data'}
                             </button>
                             ${enrollmentComplete ? `
                                 <button class="btn btn-danger" onclick="deleteFaceData('${employee.name}')" style="justify-content: center; margin: 0;">
-                                    🗑️ Delete Face Data
+                                    <i class="fas fa-trash-alt"></i> Delete Face Data
                                 </button>
                             ` : ''}
                         ` : `
                             <button class="btn reupload-btn" onclick="uploadImage('${employee.name}')" style="justify-content: center; margin: 0;">
-                                📷 Upload Image
+                                <i class="fas fa-camera"></i> Upload Image
                             </button>
                         `}
                     </div>
@@ -1106,7 +1107,7 @@
                 document.getElementById('modalVideo').srcObject = currentStream;
                 document.getElementById('startCameraBtn').disabled = true;
                 document.getElementById('capturePhotoBtn').disabled = false;
-                document.getElementById('startCameraBtn').innerHTML = '📹 Camera Active';
+                document.getElementById('startCameraBtn').innerHTML = '<i class="fas fa-video"></i> Camera Active';
                 
             } catch (error) {
                 console.error('Error accessing camera:', error);
@@ -1201,7 +1202,7 @@
             }
             document.getElementById('startCameraBtn').disabled = false;
             document.getElementById('capturePhotoBtn').disabled = true;
-            document.getElementById('startCameraBtn').innerHTML = '📷 Start Camera';
+            document.getElementById('startCameraBtn').innerHTML = '<i class="fas fa-camera"></i> Start Camera';
             
             // Reset file input
             document.getElementById('fileInput').value = '';

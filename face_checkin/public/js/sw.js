@@ -214,6 +214,7 @@ async function getOfflinePage() {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Offline - Face Check-in System</title>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -271,15 +272,15 @@ async function getOfflinePage() {
     </head>
     <body>
       <div class="offline-container">
-        <div class="offline-icon">📱</div>
+        <div class="offline-icon"><i class="fas fa-mobile-alt"></i></div>
         <h1>You're Offline</h1>
         <p>Face Check-in System is not available right now. Some cached features may still work.</p>
         <button class="retry-btn" onclick="window.location.reload()">
-          🔄 Try Again
+          <i class="fas fa-sync-alt"></i> Try Again
         </button>
         <br>
-        <a href="/checkin" class="nav-btn">📋 Check-in</a>
-        <a href="/employee-images" class="nav-btn">👥 Employees</a>
+        <a href="/checkin" class="nav-btn"><i class="fas fa-clipboard-check"></i> Check-in</a>
+        <a href="/employee-images" class="nav-btn"><i class="fas fa-users"></i> Employees</a>
       </div>
     </body>
     </html>
