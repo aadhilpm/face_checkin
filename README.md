@@ -49,6 +49,10 @@ sudo apt-get install -y libopencv-dev libgl1-mesa-glx libglib2.0-0 libsm6 libxex
 bench restart
 ```
 
+## Data Storage
+
+All employee check-in data is stored in the **Employee Checkin** doctype in ERPNext, maintaining full integration with the existing HRMS system.
+
 ## Usage
 
 1. **Setup** - Visit `/setup` to check system status and dependencies
