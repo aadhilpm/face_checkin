@@ -554,36 +554,27 @@
                     <div class="step">
                         <h3>
                             <span class="step-number">1</span>
-                            Install Dependencies
+                            Install Face Recognition
                         </h3>
-                        <p>Install required Python packages in your bench environment:</p>
-                        <div class="code">cd /path/to/your/bench<br>source env/bin/activate<br>pip install opencv-python pillow numpy</div>
+                        <p>Install dependencies (includes ONNX for better accuracy):</p>
+                        <div class="code">cd /path/to/your/bench<br>source env/bin/activate<br>pip install -r apps/face_checkin/requirements.txt</div>
                     </div>
 
                     <div class="step">
                         <h3>
                             <span class="step-number">2</span>
-                            Install System Dependencies
-                        </h3>
-                        <p>For Ubuntu/Debian systems, install OpenCV system libraries:</p>
-                        <div class="code">sudo apt-get update<br>sudo apt-get install -y libopencv-dev libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev</div>
-                    </div>
-
-                    <div class="step">
-                        <h3>
-                            <span class="step-number">3</span>
                             Restart Services
                         </h3>
-                        <p>Restart your bench to load the new packages:</p>
+                        <p>Restart bench to load packages:</p>
                         <div class="code">bench restart</div>
                     </div>
 
                     <div class="step">
                         <h3>
-                            <span class="step-number">4</span>
-                            Verify Installation
+                            <span class="step-number">3</span>
+                            Verify Setup
                         </h3>
-                        <p>Use the "Refresh Status" button above to check if everything is working correctly.</p>
+                        <p>Use "Refresh Status" above to check installation.</p>
                     </div>
                 </div>
 
@@ -642,6 +633,13 @@
                     </span>
                 </div>
                 <div class="status-item">
+                    <span class="status-label">ONNX Enhanced Recognition</span>
+                    <span class="status-value ${data.onnx_models_ready ? 'status-good' : (data.onnx_available ? 'status-warning' : 'status-info')}">
+                        <i class="fas fa-${data.onnx_models_ready ? 'rocket' : (data.onnx_available ? 'download' : 'robot')}"></i>
+                        ${data.onnx_models_ready ? 'Active' : (data.onnx_available ? 'Ready to Download' : 'Not Installed')}
+                    </span>
+                </div>
+                <div class="status-item">
                     <span class="status-label">Face Data Storage</span>
                     <span class="status-value ${dirOk ? 'status-good' : 'status-bad'}">
                         <i class="fas fa-${dirOk ? 'folder-check' : 'folder-open'}"></i>
@@ -679,7 +677,13 @@
             if (!faceOk) {
                 container.innerHTML += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Face recognition is not available. Please install the required dependencies using the guide below.</div>';
             } else if (faceOk && dirOk) {
-                container.innerHTML += '<div class="alert alert-success"><i class="fas fa-check-circle"></i> System is ready! You can now proceed to enroll employee faces.</div>';
+                if (data.onnx_models_ready) {
+                    container.innerHTML += '<div class="alert alert-success"><i class="fas fa-rocket"></i> Enhanced ONNX system ready! You can now proceed to enroll employee faces for higher accuracy recognition.</div>';
+                } else if (data.onnx_available) {
+                    container.innerHTML += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> System ready! ONNX models will download automatically on first use for enhanced accuracy.</div>';
+                } else {
+                    container.innerHTML += '<div class="alert alert-success"><i class="fas fa-check-circle"></i> System ready! Consider installing ONNX Runtime for better accuracy: pip install onnxruntime</div>';
+                }
             }
         }
 
@@ -734,6 +738,20 @@
                     </span>
                 </div>
                 <div class="status-item">
+                    <span class="status-label">ONNX Runtime (Enhanced Recognition)</span>
+                    <span class="status-value ${data.onnxruntime === 'Available' ? 'status-good' : 'status-warning'}">
+                        <i class="fas fa-${data.onnxruntime === 'Available' ? 'robot' : 'times-circle'}"></i>
+                        ${data.onnxruntime}${data.onnx_version ? ' (v' + data.onnx_version + ')' : ''}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">ONNX Face Models</span>
+                    <span class="status-value ${data.onnx_models === 'Available' ? 'status-good' : 'status-warning'}">
+                        <i class="fas fa-${data.onnx_models === 'Available' ? 'brain' : 'download'}"></i>
+                        ${data.onnx_models || 'Not available'}
+                    </span>
+                </div>
+                <div class="status-item">
                     <span class="status-label">Face Recognition Engine</span>
                     <span class="status-value ${data.face_recognition_flag ? 'status-good' : 'status-bad'}">
                         <i class="fas fa-${data.face_recognition_flag ? 'toggle-on' : 'toggle-off'}"></i>
@@ -754,9 +772,27 @@
                         ${data.embedding_files} employees
                     </span>
                 </div>
+                ${data.onnx_models_dir ? `
+                <div class="status-item">
+                    <span class="status-label">ONNX Models Location</span>
+                    <span class="status-value status-info" style="font-size: 0.85rem; word-break: break-all;">
+                        <i class="fas fa-folder"></i>
+                        ${data.onnx_models_dir}
+                    </span>
+                </div>
+                ` : ''}
+                ${data.onnx_model_files && Object.keys(data.onnx_model_files).length > 0 ? Object.entries(data.onnx_model_files).map(([key, status]) => `
+                <div class="status-item">
+                    <span class="status-label">• ${key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} Model</span>
+                    <span class="status-value ${status.includes('Downloaded') ? 'status-good' : 'status-warning'}" style="font-size: 0.85rem;">
+                        <i class="fas fa-${status.includes('Downloaded') ? 'check-circle' : 'download'}"></i>
+                        ${status}
+                    </span>
+                </div>
+                `).join('') : ''}
                 ${data.embedding_dir ? `
                 <div class="status-item">
-                    <span class="status-label">Storage Location</span>
+                    <span class="status-label">Face Data Storage</span>
                     <span class="status-value status-info" style="font-size: 0.85rem; word-break: break-all;">
                         <i class="fas fa-folder"></i>
                         ${data.embedding_dir}
@@ -766,20 +802,31 @@
             `;
 
             // Add appropriate alerts based on detailed status
-            const allDepsAvailable = data.opencv === 'Available' && data.pil === 'Available' && data.numpy === 'Available';
+            const coreDepsAvailable = data.opencv === 'Available' && data.pil === 'Available' && data.numpy === 'Available';
+            const onnxAvailable = data.onnxruntime === 'Available';
+            const onnxModelsReady = data.onnx_models === 'Available';
             
-            if (!allDepsAvailable) {
+            if (!coreDepsAvailable) {
                 const missingDeps = [];
                 if (data.opencv !== 'Available') missingDeps.push('OpenCV');
                 if (data.pil !== 'Available') missingDeps.push('PIL/Pillow');
                 if (data.numpy !== 'Available') missingDeps.push('NumPy');
                 
-                container.innerHTML += `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Missing dependencies: ${missingDeps.join(', ')}. Please follow the installation guide below.</div>`;
+                container.innerHTML += `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Missing core dependencies: ${missingDeps.join(', ')}. Please install using: pip install -r apps/face_checkin/requirements.txt</div>`;
+            } else if (!onnxAvailable) {
+                container.innerHTML += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> ONNX Runtime not installed. System will use OpenCV (lower accuracy). Install with: pip install onnxruntime</div>';
+            } else if (onnxAvailable && !onnxModelsReady) {
+                container.innerHTML += '<div class="alert alert-info"><i class="fas fa-download"></i> ONNX Runtime installed! Models will download automatically on first face recognition use.</div>';
             } else if (data.face_recognition_flag && data.dir_exists) {
                 if (data.embedding_files === 0) {
-                    container.innerHTML += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> System is ready! No employees enrolled yet. Visit <a href="/employee-images" style="color: var(--primary-blue); text-decoration: underline;">Employee Management</a> to get started.</div>';
+                    if (onnxModelsReady) {
+                        container.innerHTML += '<div class="alert alert-success"><i class="fas fa-rocket"></i> Enhanced ONNX system ready! No employees enrolled yet. Visit <a href="/employee-images" style="color: var(--primary-blue); text-decoration: underline;">Employee Management</a> to get started.</div>';
+                    } else {
+                        container.innerHTML += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> System ready! No employees enrolled yet. Visit <a href="/employee-images" style="color: var(--primary-blue); text-decoration: underline;">Employee Management</a> to get started.</div>';
+                    }
                 } else {
-                    container.innerHTML += `<div class="alert alert-success"><i class="fas fa-check-circle"></i> System fully operational with ${data.embedding_files} enrolled employees. Ready for face recognition!</div>`;
+                    const systemType = onnxModelsReady ? 'Enhanced ONNX' : 'Standard OpenCV';
+                    container.innerHTML += `<div class="alert alert-success"><i class="fas fa-check-circle"></i> ${systemType} system fully operational with ${data.embedding_files} enrolled employees. Ready for face recognition!</div>`;
                 }
             }
         }

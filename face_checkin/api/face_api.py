@@ -177,8 +177,8 @@ def upload_face(employee_id, image_base64=None):
             "message": "No face detected in image"
         }
 
-    # Check image quality
-    quality_result = validate_face_quality(img_np, face_locs[0])
+    # Check image quality with lenient mode for employee enrollment
+    quality_result = validate_face_quality(img_np, face_locs[0], lenient_mode=True)
     
     if not quality_result["valid"]:
         return {
@@ -374,16 +374,18 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
                     if frappe.db.exists("Employee", employee_id):
                         encoding = np.load(filepath)
                         
-                        # Validate encoding shape (ArcFace produces 512-dimensional embeddings)
-                        if encoding.shape != (512,):
-                            if encoding.shape == (128,):
-                                failed_loadings.append(f"{employee_id}: Old face-recognition embedding detected (128-dim). Please re-enroll this employee.")
-                            else:
-                                failed_loadings.append(f"{employee_id}: Invalid encoding shape {encoding.shape}. Expected (512,)")
+                        # Validate encoding shape - expecting 64-dimensional OpenCV features
+                        if len(encoding.shape) == 1 and encoding.shape[0] == 64:
+                            # Valid 64-dimensional OpenCV embedding
+                            known_encodings.append(encoding)
+                            employee_ids.append(employee_id)
+                        elif len(encoding.shape) == 1:
+                            # Invalid dimensions - needs re-enrollment
+                            failed_loadings.append(f"{employee_id}: Invalid embedding size {encoding.shape[0]}. Expected 64-dim. Please re-enroll.")
                             continue
-                            
-                        known_encodings.append(encoding)
-                        employee_ids.append(employee_id)
+                        else:
+                            failed_loadings.append(f"{employee_id}: Invalid encoding format {encoding.shape}. Expected 1D array.")
+                            continue
                     else:
                         failed_loadings.append(f"{employee_id}: Employee not found in database")
                         
@@ -468,24 +470,19 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
             
             # Check HR Settings for geolocation tracking
             hr_settings = frappe.get_single("HR Settings")
+            geolocation_provided = False
             if hr_settings.allow_geolocation_tracking:
                 if latitude and longitude:
                     try:
                         checkin.latitude = float(latitude)
                         checkin.longitude = float(longitude)
+                        geolocation_provided = True
                     except (ValueError, TypeError):
-                        return {
-                            "status": "error",
-                            "message": "Invalid latitude or longitude coordinates provided.",
-                            "geolocation_required": True
-                        }
-                else:
-                    # Return error if geolocation is required but coordinates not provided
-                    return {
-                        "status": "error",
-                        "message": "Geolocation tracking is enabled. Please provide latitude and longitude coordinates.",
-                        "geolocation_required": True
-                    }
+                        # Invalid coordinates - continue without geolocation but warn
+                        frappe.log_error(f"Invalid geolocation coordinates provided: lat={latitude}, lng={longitude}")
+                
+                # Note: We allow check-ins without geolocation if coordinates aren't provided
+                # The frontend should handle geolocation collection
             
             try:
                 checkin.insert()
@@ -648,6 +645,21 @@ def check_system_status():
     embedding_dir = get_embedding_directory()
     dir_exists = bool(embedding_dir and os.path.exists(embedding_dir))
     
+    # Check ONNX availability
+    onnx_available = False
+    onnx_models_ready = False
+    try:
+        import onnxruntime
+        onnx_available = True
+        try:
+            from face_checkin.utils.onnx_face_recognition import get_onnx_face_recognition
+            onnx_fr = get_onnx_face_recognition()
+            onnx_models_ready = onnx_fr.is_available()
+        except:
+            pass
+    except:
+        pass
+    
     # Get user info
     user = frappe.session.user if hasattr(frappe, 'session') else "Guest"
     roles = frappe.get_roles(user) if user != "Guest" else []
@@ -656,9 +668,177 @@ def check_system_status():
         "face_recognition_available": face_available,
         "embedding_directory_exists": dir_exists,
         "embedding_directory": embedding_dir,
+        "onnx_available": onnx_available,
+        "onnx_models_ready": onnx_models_ready,
         "user": user,
         "user_roles": roles
     }
+
+@frappe.whitelist()
+def diagnose_face_data():
+    """
+    Diagnose face embedding files and provide repair suggestions
+    """
+    try:
+        embedding_dir = get_embedding_directory()
+        if not os.path.exists(embedding_dir):
+            return {
+                "status": "error",
+                "message": "Face data directory doesn't exist",
+                "directory": embedding_dir
+            }
+        
+        files = [f for f in os.listdir(embedding_dir) if f.endswith('.npy')]
+        if not files:
+            return {
+                "status": "info",
+                "message": "No face embedding files found",
+                "directory": embedding_dir,
+                "total_files": 0
+            }
+        
+        diagnosis = {
+            "total_files": len(files),
+            "valid_files": [],
+            "invalid_files": [],
+            "missing_employees": [],
+            "size_issues": [],
+            "opencv_compatible": 0
+        }
+        
+        for filename in files:
+            employee_id = filename.replace('.npy', '')
+            filepath = os.path.join(embedding_dir, filename)
+            
+            try:
+                # Check if employee exists
+                if not frappe.db.exists("Employee", employee_id):
+                    diagnosis["missing_employees"].append({
+                        "employee_id": employee_id,
+                        "issue": "Employee not found in database"
+                    })
+                    continue
+                
+                # Load and analyze embedding
+                encoding = np.load(filepath)
+                file_size = os.path.getsize(filepath)
+                
+                if len(encoding.shape) != 1:
+                    diagnosis["invalid_files"].append({
+                        "employee_id": employee_id,
+                        "issue": f"Invalid shape {encoding.shape}, expected 1D array",
+                        "file_size": file_size
+                    })
+                    continue
+                
+                dim = encoding.shape[0]
+                if dim == 64:
+                    diagnosis["opencv_compatible"] += 1
+                    diagnosis["valid_files"].append({
+                        "employee_id": employee_id,
+                        "dimensions": dim,
+                        "type": "OpenCV (64-dim)",
+                        "file_size": file_size
+                    })
+                else:
+                    diagnosis["size_issues"].append({
+                        "employee_id": employee_id,
+                        "issue": f"Invalid {dim} dimensions - expected 64",
+                        "dimensions": dim,
+                        "file_size": file_size
+                    })
+                    
+            except Exception as e:
+                diagnosis["invalid_files"].append({
+                    "employee_id": employee_id,
+                    "issue": f"Failed to load: {str(e)}",
+                    "file_size": os.path.getsize(filepath) if os.path.exists(filepath) else 0
+                })
+        
+        # Generate recommendations
+        recommendations = []
+        if diagnosis["missing_employees"]:
+            recommendations.append(f"Remove {len(diagnosis['missing_employees'])} orphaned face files")
+        if diagnosis["size_issues"]:
+            recommendations.append(f"Re-enroll {len(diagnosis['size_issues'])} employees with incompatible embeddings")
+        if diagnosis["invalid_files"]:
+            recommendations.append(f"Re-enroll {len(diagnosis['invalid_files'])} employees with corrupted files")
+        
+        return {
+            "status": "success",
+            "directory": embedding_dir,
+            "diagnosis": diagnosis,
+            "recommendations": recommendations
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Diagnosis failed: {str(e)}"
+        }
+
+@frappe.whitelist()
+def cleanup_face_data():
+    """
+    Clean up problematic face embedding files
+    """
+    try:
+        embedding_dir = get_embedding_directory()
+        if not os.path.exists(embedding_dir):
+            return {
+                "status": "error",
+                "message": "Face data directory doesn't exist"
+            }
+        
+        files = [f for f in os.listdir(embedding_dir) if f.endswith('.npy')]
+        if not files:
+            return {
+                "status": "info",
+                "message": "No face files to clean up"
+            }
+        
+        cleaned_files = []
+        errors = []
+        
+        for filename in files:
+            employee_id = filename.replace('.npy', '')
+            filepath = os.path.join(embedding_dir, filename)
+            
+            try:
+                # Check if employee exists
+                if not frappe.db.exists("Employee", employee_id):
+                    os.remove(filepath)
+                    cleaned_files.append(f"{employee_id}: Removed orphaned file")
+                    continue
+                
+                # Check file integrity
+                encoding = np.load(filepath)
+                if len(encoding.shape) != 1:
+                    os.remove(filepath)
+                    cleaned_files.append(f"{employee_id}: Removed corrupted file (invalid shape)")
+                    continue
+                
+                # Remove files with wrong dimensions (only 64-dim is valid now)
+                if encoding.shape[0] != 64:
+                    os.remove(filepath)
+                    cleaned_files.append(f"{employee_id}: Removed incompatible {encoding.shape[0]}-dim file")
+                    continue
+                    
+            except Exception as e:
+                errors.append(f"{employee_id}: Failed to process - {str(e)}")
+        
+        return {
+            "status": "success",
+            "cleaned_files": cleaned_files,
+            "errors": errors,
+            "total_cleaned": len(cleaned_files)
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Cleanup failed: {str(e)}"
+        }
 
 @frappe.whitelist()
 def get_detailed_status():
@@ -685,6 +865,38 @@ def get_detailed_status():
         status["numpy"] = "Available"
     except Exception as e:
         status["numpy"] = f"Error: {str(e)}"
+    
+    # Check ONNX Runtime
+    try:
+        import onnxruntime as ort
+        status["onnxruntime"] = "Available"
+        status["onnx_version"] = ort.__version__
+    except Exception as e:
+        status["onnxruntime"] = f"Not installed"
+        status["onnx_version"] = None
+    
+    # Check ONNX face recognition integration
+    try:
+        from face_checkin.utils.onnx_face_recognition import get_onnx_face_recognition
+        onnx_fr = get_onnx_face_recognition()
+        status["onnx_models"] = "Available" if onnx_fr.is_available() else "Not loaded"
+        status["onnx_models_dir"] = onnx_fr.models_dir
+        
+        # Check individual model files
+        if hasattr(onnx_fr, 'model_urls'):
+            model_status = {}
+            for model_key, model_info in onnx_fr.model_urls.items():
+                model_path = os.path.join(onnx_fr.models_dir, model_info['filename'])
+                if os.path.exists(model_path):
+                    size_mb = os.path.getsize(model_path) / (1024 * 1024)
+                    model_status[model_key] = f"Downloaded ({size_mb:.1f}MB)"
+                else:
+                    model_status[model_key] = "Not downloaded"
+            status["onnx_model_files"] = model_status
+    except Exception as e:
+        status["onnx_models"] = f"Error: {str(e)}"
+        status["onnx_models_dir"] = None
+        status["onnx_model_files"] = {}
     
     # Check directory
     embedding_dir = get_embedding_directory()
@@ -943,8 +1155,8 @@ def upload_employee_image(employee_id, image_base64, filename="employee_photo.jp
                         "message": "No face detected in uploaded image"
                     }
                 
-                # Check image quality
-                quality_result = validate_face_quality(img_np, face_locs[0])
+                # Check image quality with lenient mode for employee uploads
+                quality_result = validate_face_quality(img_np, face_locs[0], lenient_mode=True)
                 
                 if not quality_result["valid"]:
                     return {

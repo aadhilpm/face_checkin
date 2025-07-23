@@ -1145,21 +1145,60 @@
             }
 
             async recognizeEmployee(imageData) {
+                // Get geolocation if available
+                const coordinates = await this.getCurrentLocation();
+                
+                const requestBody = {
+                    image_base64: imageData,
+                    project: this.selectedProject,
+                    device_id: 'PWA_Terminal'
+                };
+                
+                // Add coordinates if available
+                if (coordinates) {
+                    requestBody.latitude = coordinates.latitude;
+                    requestBody.longitude = coordinates.longitude;
+                }
+                
                 const response = await fetch('/api/method/face_checkin.api.face_api.recognize_and_checkin', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-Frappe-CSRF-Token': frappe.csrf_token
                     },
-                    body: JSON.stringify({
-                        image_base64: imageData,
-                        project: this.selectedProject,
-                        device_id: 'PWA_Terminal'
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 
                 const data = await response.json();
                 return data.message;
+            }
+            
+            async getCurrentLocation() {
+                return new Promise((resolve) => {
+                    if (!navigator.geolocation) {
+                        console.log('Geolocation not supported');
+                        resolve(null);
+                        return;
+                    }
+                    
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            resolve({
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude
+                            });
+                        },
+                        (error) => {
+                            console.log('Geolocation error:', error.message);
+                            resolve(null);
+                        },
+                        {
+                            timeout: 10000,
+                            enableHighAccuracy: false,
+                            maximumAge: 300000 // 5 minutes
+                        }
+                    );
+                });
             }
             
             showStatus(type, message) {

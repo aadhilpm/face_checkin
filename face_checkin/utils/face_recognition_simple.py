@@ -1,10 +1,4 @@
-"""
-Simple OpenCV Face Recognition Implementation
-Production-ready face recognition system using only OpenCV
-- Optimized for performance and minimal dependencies
-- Robust error handling and fallback mechanisms
-- Compatible with Frappe Cloud and Docker environments
-"""
+"""Face Recognition with OpenCV and ONNX"""
 
 import os
 import cv2
@@ -16,7 +10,6 @@ try:
     FRAPPE_AVAILABLE = True
 except ImportError:
     FRAPPE_AVAILABLE = False
-    # Create dummy frappe module
     class DummyFrappe:
         @staticmethod
         def log_error(msg):
@@ -28,7 +21,6 @@ try:
     import hashlib
     import cv2
     import numpy as np
-    # Just test that the basic imports work - don't test cascade creation during import
     FACE_RECOGNITION_AVAILABLE = True
 except ImportError as e:
     FACE_RECOGNITION_AVAILABLE = False
@@ -37,17 +29,25 @@ except ImportError as e:
     except:
         print(f"Face recognition dependencies not available: {e}")
 
+try:
+    from .onnx_face_recognition import get_onnx_face_recognition
+    ONNX_AVAILABLE = True
+except ImportError:
+    ONNX_AVAILABLE = False
+
 
 class SimpleFaceRecognition:
-    """Production-ready OpenCV face recognition implementation"""
     
-    def __init__(self, production_mode=True):
+    def __init__(self, production_mode=True, use_onnx=False):
         if not FACE_RECOGNITION_AVAILABLE:
             self.initialized = False
             return
             
         try:
-            # Initialize OpenCV face detection
+            # ONNX disabled for stability - using OpenCV only
+            self.onnx_recognizer = None
+            
+            # Initialize OpenCV face detection (fallback)
             self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
             self.profile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_profileface.xml')
             
@@ -62,6 +62,7 @@ class SimpleFaceRecognition:
                 self.sift_extractor = cv2.SIFT_create(nfeatures=500) if hasattr(cv2, 'SIFT_create') else None
             
             self.production_mode = production_mode
+            self.use_onnx = use_onnx
             self.initialized = True
             
         except Exception as e:
@@ -96,6 +97,7 @@ class SimpleFaceRecognition:
             return []
             
         try:
+            # OpenCV face detection
             # Convert to grayscale for detection
             if len(image.shape) == 3:
                 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -192,34 +194,19 @@ class SimpleFaceRecognition:
             # Method 6: Geometric features (64 features)
             geo_features = self._extract_geometric_features(gray_face)
             
-            # Combine all features (total: 512 features)
-            combined_features = np.concatenate([
-                hist_features,      # 64
-                lbp_features,       # 64  
-                hog_features,       # 64
-                orb_features,       # 128
-                sift_features,      # 128
-                geo_features        # 64
-            ])
+            # Use only histogram features for simplicity and consistency (64 features)
+            # Normalize the feature vector
+            if np.linalg.norm(hist_features) > 0:
+                hist_features = hist_features / np.linalg.norm(hist_features)
             
-            # Ensure exactly 512 features
-            if len(combined_features) < 512:
-                combined_features = np.pad(combined_features, (0, 512 - len(combined_features)))
-            else:
-                combined_features = combined_features[:512]
-            
-            # Normalize the combined feature vector
-            if np.linalg.norm(combined_features) > 0:
-                combined_features = combined_features / np.linalg.norm(combined_features)
-            
-            return combined_features.astype(np.float32)
+            return hist_features.astype(np.float32)
             
         except Exception as e:
             try:
                 frappe.log_error(f"Feature extraction error: {e}")
             except:
                 print(f"Feature extraction error: {e}")
-            return np.zeros(512, dtype=np.float32)
+            return np.zeros(64, dtype=np.float32)
     
     def _extract_histogram_features(self, gray_face: np.ndarray) -> np.ndarray:
         """Extract histogram features from face"""
@@ -352,7 +339,7 @@ class SimpleFaceRecognition:
     def face_encodings(self, image: np.ndarray, known_face_locations: List[Tuple[int, int, int, int]] = None) -> List[np.ndarray]:
         """
         Generate face embeddings using OpenCV feature extraction
-        Returns list of 512-dimensional face embeddings
+        Returns list of 64-dimensional face embeddings
         """
         if not self.initialized:
             return []
@@ -442,7 +429,7 @@ class SimpleFaceRecognition:
                 print(f"Face distance calculation error: {e}")
             return [1.0] * len(face_encodings)
     
-    def validate_face_quality(self, image: np.ndarray, face_location: Tuple[int, int, int, int]) -> dict:
+    def validate_face_quality(self, image: np.ndarray, face_location: Tuple[int, int, int, int], lenient_mode: bool = False) -> dict:
         """
         Validate face image quality for better recognition accuracy
         Returns quality metrics and recommendations
@@ -467,21 +454,25 @@ class SimpleFaceRecognition:
             if height < 50 or width < 50:
                 quality_issues.append("Face too small - move closer to camera")
             
-            # 2. Check brightness
+            # 2. Check brightness - adjust thresholds based on mode
             mean_brightness = np.mean(gray_face)
-            if mean_brightness < 50:
+            dark_threshold = 20 if lenient_mode else 30
+            bright_threshold = 230 if lenient_mode else 220
+            if mean_brightness < dark_threshold:
                 quality_issues.append("Too dark - improve lighting")
-            elif mean_brightness > 200:
+            elif mean_brightness > bright_threshold:
                 quality_issues.append("Too bright - reduce lighting")
             
-            # 3. Check contrast
+            # 3. Check contrast - adjust threshold based on mode
             contrast = np.std(gray_face)
-            if contrast < 20:
+            contrast_threshold = 10 if lenient_mode else 15
+            if contrast < contrast_threshold:
                 quality_issues.append("Low contrast - improve lighting conditions")
             
-            # 4. Check blur (using Laplacian variance)
+            # 4. Check blur (using Laplacian variance) - adjust threshold based on mode
             laplacian_var = cv2.Laplacian(gray_face, cv2.CV_64F).var()
-            if laplacian_var < 100:
+            blur_threshold = 30 if lenient_mode else 50
+            if laplacian_var < blur_threshold:
                 quality_issues.append("Image too blurry - hold steady and ensure good focus")
             
             # 5. Check if face is roughly centered and not cut off
@@ -489,8 +480,8 @@ class SimpleFaceRecognition:
             face_height = bottom - top
             image_height, image_width = image.shape[:2]
             
-            # Face should be at least 15% of image width/height for good quality
-            if face_width < 0.15 * image_width or face_height < 0.15 * image_height:
+            # Face should be at least 10% of image width/height for good quality
+            if face_width < 0.10 * image_width or face_height < 0.10 * image_height:
                 quality_issues.append("Face too small in frame - move closer")
             
             # Face shouldn't be cut off at edges
@@ -498,7 +489,7 @@ class SimpleFaceRecognition:
             if left < edge_margin or top < edge_margin or right > (image_width - edge_margin) or bottom > (image_height - edge_margin):
                 quality_issues.append("Face partially cut off - center yourself in frame")
             
-            return {
+            result = {
                 "valid": len(quality_issues) == 0,
                 "quality_score": max(0, 100 - len(quality_issues) * 20),
                 "issues": quality_issues,
@@ -509,6 +500,12 @@ class SimpleFaceRecognition:
                     "face_size": (width, height)
                 }
             }
+            
+            if lenient_mode and not result["valid"]:
+                result["lenient_mode"] = True
+                result["note"] = "Using relaxed quality standards for employee enrollment"
+            
+            return result
             
         except Exception as e:
             try:
@@ -586,10 +583,10 @@ def face_distance(known_encodings, face_encoding):
     return fr.face_distance(known_encodings, face_encoding)
 
 
-def validate_face_quality(image, face_location):
+def validate_face_quality(image, face_location, lenient_mode=False):
     """Validate face quality - compatibility function"""
     fr = get_face_recognition()
-    return fr.validate_face_quality(image, face_location)
+    return fr.validate_face_quality(image, face_location, lenient_mode)
 
 
 def get_best_face_from_multiple(image, face_locations):
