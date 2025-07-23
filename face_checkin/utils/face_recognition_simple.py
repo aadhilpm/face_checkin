@@ -429,7 +429,7 @@ class SimpleFaceRecognition:
                 print(f"Face distance calculation error: {e}")
             return [1.0] * len(face_encodings)
     
-    def validate_face_quality(self, image: np.ndarray, face_location: Tuple[int, int, int, int], lenient_mode: bool = False) -> dict:
+    def validate_face_quality(self, image: np.ndarray, face_location: Tuple[int, int, int, int], lenient_mode: bool = False, strict_accuracy: bool = True) -> dict:
         """
         Validate face image quality for better recognition accuracy
         Returns quality metrics and recommendations
@@ -449,31 +449,72 @@ class SimpleFaceRecognition:
             
             quality_issues = []
             
-            # 1. Check face size (minimum 50x50 pixels)
+            # Enhanced quality checks for strict accuracy mode
+            if strict_accuracy:
+                # STRICT ACCURACY MODE - Higher standards
+                min_face_size = 80 if not lenient_mode else 60
+                dark_threshold = 35 if not lenient_mode else 25
+                bright_threshold = 210 if not lenient_mode else 225
+                contrast_threshold = 20 if not lenient_mode else 15
+                blur_threshold = 80 if not lenient_mode else 50
+            else:
+                # Standard mode thresholds
+                min_face_size = 50
+                dark_threshold = 20 if lenient_mode else 30
+                bright_threshold = 230 if lenient_mode else 220
+                contrast_threshold = 10 if lenient_mode else 15
+                blur_threshold = 30 if lenient_mode else 50
+            
+            # 1. Check face size
             height, width = gray_face.shape
-            if height < 50 or width < 50:
-                quality_issues.append("Face too small - move closer to camera")
+            if height < min_face_size or width < min_face_size:
+                quality_issues.append(f"Face too small ({width}x{height}, need ≥{min_face_size}x{min_face_size}) - move closer to camera")
             
-            # 2. Check brightness - adjust thresholds based on mode
+            # 2. Check brightness
             mean_brightness = np.mean(gray_face)
-            dark_threshold = 20 if lenient_mode else 30
-            bright_threshold = 230 if lenient_mode else 220
             if mean_brightness < dark_threshold:
-                quality_issues.append("Too dark - improve lighting")
+                quality_issues.append(f"Too dark (brightness: {mean_brightness:.1f}/{dark_threshold}) - improve lighting")
             elif mean_brightness > bright_threshold:
-                quality_issues.append("Too bright - reduce lighting")
+                quality_issues.append(f"Too bright (brightness: {mean_brightness:.1f}/{bright_threshold}) - reduce lighting")
             
-            # 3. Check contrast - adjust threshold based on mode
+            # 3. Check contrast
             contrast = np.std(gray_face)
-            contrast_threshold = 10 if lenient_mode else 15
             if contrast < contrast_threshold:
-                quality_issues.append("Low contrast - improve lighting conditions")
+                quality_issues.append(f"Low contrast ({contrast:.1f}/{contrast_threshold}) - improve lighting conditions")
             
-            # 4. Check blur (using Laplacian variance) - adjust threshold based on mode
+            # 4. Check blur (using Laplacian variance)
             laplacian_var = cv2.Laplacian(gray_face, cv2.CV_64F).var()
-            blur_threshold = 30 if lenient_mode else 50
             if laplacian_var < blur_threshold:
-                quality_issues.append("Image too blurry - hold steady and ensure good focus")
+                quality_issues.append(f"Image too blurry (sharpness: {laplacian_var:.1f}/{blur_threshold}) - hold steady and ensure good focus")
+            
+            # 5. STRICT ACCURACY: Additional advanced quality checks
+            if strict_accuracy:
+                # Check for over/under exposure
+                hist = cv2.calcHist([gray_face], [0], None, [256], [0, 256])
+                hist = hist.flatten()
+                
+                # Check if too many pixels are at extremes (over/under exposed)
+                dark_pixels = np.sum(hist[:20]) / gray_face.size  # Very dark pixels
+                bright_pixels = np.sum(hist[235:]) / gray_face.size  # Very bright pixels
+                
+                if dark_pixels > 0.15:  # More than 15% very dark pixels
+                    quality_issues.append(f"Underexposed image ({dark_pixels:.1%} very dark pixels)")
+                if bright_pixels > 0.10:  # More than 10% very bright pixels
+                    quality_issues.append(f"Overexposed image ({bright_pixels:.1%} very bright pixels)")
+                
+                # Check for proper face positioning (eyes should be visible)
+                try:
+                    eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+                    eyes = eye_cascade.detectMultiScale(gray_face, 1.1, 5)
+                    if len(eyes) < 2:
+                        quality_issues.append("Eyes not clearly visible - ensure face is front-facing")
+                except:
+                    pass
+                
+                # Check image noise levels
+                noise_level = np.std(cv2.GaussianBlur(gray_face, (5, 5), 0) - gray_face)
+                if noise_level > 8.0:
+                    quality_issues.append(f"High image noise level ({noise_level:.1f}) - improve camera quality or lighting")
             
             # 5. Check if face is roughly centered and not cut off
             face_width = right - left
@@ -583,10 +624,10 @@ def face_distance(known_encodings, face_encoding):
     return fr.face_distance(known_encodings, face_encoding)
 
 
-def validate_face_quality(image, face_location, lenient_mode=False):
+def validate_face_quality(image, face_location, lenient_mode=False, strict_accuracy=True):
     """Validate face quality - compatibility function"""
     fr = get_face_recognition()
-    return fr.validate_face_quality(image, face_location, lenient_mode)
+    return fr.validate_face_quality(image, face_location, lenient_mode, strict_accuracy)
 
 
 def get_best_face_from_multiple(image, face_locations):

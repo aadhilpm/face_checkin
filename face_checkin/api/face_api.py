@@ -328,16 +328,34 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
                 "message": "No face detected in image"
             }
         
-        # Select best quality face if multiple faces detected
+        # Handle multiple faces detected - this could indicate wrong person in frame
         if len(face_locs) > 1:
-            best_face = get_best_face_from_multiple(img_np, face_locs)
-            if best_face:
-                face_locs = [best_face]
-            # Also warn about multiple faces
-            frappe.log_error(f"Multiple faces detected in check-in image: {len(face_locs)} faces found")
+            frappe.log_error(f"Multiple faces detected in check-in image: {len(face_locs)} faces found", "Multiple Face Warning")
+            
+            # Check if multiple face detection is allowed (can be configured in site_config.json)
+            allow_multiple_faces = frappe.conf.get("face_recognition_allow_multiple_faces", False)
+            
+            if not allow_multiple_faces:
+                # For security, reject check-in if multiple faces detected
+                # This prevents accidental check-in of wrong person
+                return {
+                    "status": "error",
+                    "message": f"Multiple faces detected ({len(face_locs)} faces). Please ensure only one person is visible in the camera for security."
+                }
+            else:
+                # Select best quality face if multiple faces are allowed
+                best_face = get_best_face_from_multiple(img_np, face_locs)
+                if best_face:
+                    face_locs = [best_face]
+                    frappe.log_error(f"Selected best face from {len(face_locs)} detected faces", "Multiple Face Handling")
+                else:
+                    return {
+                        "status": "error",
+                        "message": "Could not determine best face from multiple detected faces"
+                    }
         
-        # Validate face quality
-        face_quality = validate_face_quality(img_np, face_locs[0])
+        # Validate face quality with strict accuracy enforcement
+        face_quality = validate_face_quality(img_np, face_locs[0], lenient_mode=False, strict_accuracy=True)
         if not face_quality["valid"]:
             quality_issues = " and ".join(face_quality["issues"])
             return {
@@ -410,17 +428,33 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
 
         # Compare face with known faces
         try:
-            # Get configurable tolerance settings (can be adjusted via Site Config)
-            initial_tolerance = frappe.conf.get("face_recognition_initial_tolerance", 0.7)
-            strict_tolerance = frappe.conf.get("face_recognition_strict_tolerance", 0.55)
-            min_quality_score = frappe.conf.get("face_recognition_min_quality", 60)
+            # STRICT ACCURACY ENFORCEMENT - Tighter thresholds for maximum accuracy
+            initial_tolerance = frappe.conf.get("face_recognition_initial_tolerance", 0.5)  # Reduced from 0.7
+            strict_tolerance = frappe.conf.get("face_recognition_strict_tolerance", 0.35)   # Reduced from 0.55
+            min_quality_score = frappe.conf.get("face_recognition_min_quality", 75)        # Increased from 60
+            min_confidence_threshold = frappe.conf.get("face_recognition_min_confidence", 75.0) # Increased from 65%
+            required_confidence_gap = frappe.conf.get("face_recognition_confidence_gap", 10.0)  # Increased from 5%
             
             # Ensure we have fresh data for comparison
             matches = compare_faces(known_encodings, face_encoding, tolerance=initial_tolerance)
             face_distances = face_distance(known_encodings, face_encoding)
             
-            # Log comparison details for debugging
-            frappe.log_error(f"Face comparison: {len(matches)} total matches, distances: {face_distances[:5] if len(face_distances) > 5 else face_distances}", "Face Recognition Debug")
+            # ACCURACY MONITORING: Log detailed comparison metrics
+            accuracy_log = {
+                "total_candidates": len(known_encodings),
+                "initial_matches": sum(matches),
+                "min_distance": min(face_distances) if face_distances else 1.0,
+                "max_distance": max(face_distances) if face_distances else 1.0,
+                "avg_distance": np.mean(face_distances) if face_distances else 1.0,
+                "quality_score": face_quality["quality_score"],
+                "thresholds": {
+                    "initial_tolerance": initial_tolerance,
+                    "strict_tolerance": strict_tolerance,
+                    "min_confidence": min_confidence_threshold,
+                    "confidence_gap": required_confidence_gap
+                }
+            }
+            frappe.log_error(f"Face Recognition Accuracy Metrics: {accuracy_log}", "Face Recognition Accuracy")
             
         except Exception as compare_error:
             return {
@@ -428,87 +462,163 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
                 "message": f"Face comparison failed: {str(compare_error)}"
             }
 
-        if not any(matches):
+        # Filter matches that meet minimum confidence before selecting best
+        valid_matches = []
+        for i, (match, distance) in enumerate(zip(matches, face_distances)):
+            if match and distance < initial_tolerance:
+                confidence = max(0, min(100, (1 - distance) * 100))
+                if confidence >= min_confidence_threshold:
+                    valid_matches.append({
+                        'index': i,
+                        'distance': distance,
+                        'confidence': confidence,
+                        'employee_id': employee_ids[i]
+                    })
+
+        if not valid_matches:
             return {
                 "status": "error", 
-                "message": "Employee not recognized"
+                "message": "Employee not recognized - no confident matches found"
             }
 
-        # Get the best match
-        best_match_index = np.argmin(face_distances)
-        best_distance = face_distances[best_match_index]
+        # Sort by confidence (highest first) and select the most confident match
+        valid_matches.sort(key=lambda x: x['confidence'], reverse=True)
+        best_match = valid_matches[0]
         
         # Apply quality-adjusted validation based on image quality
         quality_bonus = (face_quality["quality_score"] / 100) * 0.1  # Up to 0.1 bonus for high quality
         adjusted_tolerance = strict_tolerance + quality_bonus
         
-        # Validate that the best match meets our criteria
-        if matches[best_match_index] and best_distance < adjusted_tolerance:
-            recognized_employee = employee_ids[best_match_index]
-            confidence = max(0, min(100, (1 - best_distance) * 100))  # Convert to percentage
+        # Additional validation: ensure the best match is significantly better than others
+        if len(valid_matches) > 1:
+            second_best = valid_matches[1]
+            confidence_gap = best_match['confidence'] - second_best['confidence']
             
-            # Log recognition for debugging
-            frappe.log_error(f"Employee recognized: {recognized_employee}, confidence: {confidence:.2%}, distance: {best_distance:.3f}", "Face Recognition Success")
-            
-            # Get employee details (force reload to avoid cache issues)
-            frappe.clear_document_cache("Employee", recognized_employee)
-            employee = frappe.get_doc("Employee", recognized_employee)
-            
-            # Determine log type if not provided
-            if not log_type:
-                log_type = determine_log_type(recognized_employee)
-            
-            # Create Employee Checkin record
-            checkin = frappe.new_doc("Employee Checkin")
-            checkin.employee = recognized_employee
-            checkin.employee_name = employee.employee_name
-            checkin.time = frappe.utils.now_datetime()
-            checkin.log_type = log_type
-            checkin.device_id = device_id or "Face Recognition System"
-            if project:
-                checkin.custom_project = project
-            
-            # Check HR Settings for geolocation tracking
-            hr_settings = frappe.get_single("HR Settings")
-            geolocation_provided = False
-            if hr_settings.allow_geolocation_tracking:
-                if latitude and longitude:
-                    try:
-                        checkin.latitude = float(latitude)
-                        checkin.longitude = float(longitude)
-                        geolocation_provided = True
-                    except (ValueError, TypeError):
-                        # Invalid coordinates - continue without geolocation but warn
-                        frappe.log_error(f"Invalid geolocation coordinates provided: lat={latitude}, lng={longitude}")
-                
-                # Note: We allow check-ins without geolocation if coordinates aren't provided
-                # The frontend should handle geolocation collection
-            
-            try:
-                checkin.insert()
-            except frappe.ValidationError as ve:
-                # Handle validation errors from ERPNext (like distance validation)
+            # Require significant confidence gap between best and second-best match for accuracy
+            if confidence_gap < required_confidence_gap:
+                frappe.log_error(f"Ambiguous face recognition: Best match {best_match['employee_id']} ({best_match['confidence']:.1f}%) vs {second_best['employee_id']} ({second_best['confidence']:.1f}%) - gap too small", "Face Recognition Warning")
                 return {
                     "status": "error",
-                    "message": f"Check-in validation failed: {str(ve)}",
-                    "geolocation_required": hr_settings.allow_geolocation_tracking
+                    "message": "Multiple similar faces detected - unable to identify with confidence"
                 }
-            
-            return {
-                "status": "success",
-                "message": f"{log_type} recorded for {employee.employee_name}",
-                "employee_id": recognized_employee,
-                "employee_name": employee.employee_name,
-                "log_type": log_type,
-                "time": checkin.time,
-                "confidence": round(confidence * 100, 2),
-                "checkin_id": checkin.name
-            }
-        else:
+        
+        # MULTI-STAGE VERIFICATION for maximum accuracy
+        
+        # Stage 1: Basic threshold validation
+        if best_match['distance'] >= adjusted_tolerance:
             return {
                 "status": "error",
-                "message": "Employee not recognized"
+                "message": "Employee not recognized - insufficient match quality"
             }
+        
+        # Stage 2: Minimum confidence validation
+        if best_match['confidence'] < min_confidence_threshold:
+            return {
+                "status": "error",
+                "message": f"Recognition confidence too low ({best_match['confidence']:.1f}% < {min_confidence_threshold}%)"
+            }
+        
+        # Stage 3: Image quality validation
+        if face_quality["quality_score"] < min_quality_score:
+            return {
+                "status": "error",
+                "message": f"Image quality insufficient for accurate recognition (score: {face_quality['quality_score']}/{min_quality_score})"
+            }
+        
+        # Stage 4: Cross-validation with secondary features (if available)
+        try:
+            # Perform additional validation using different feature extraction methods
+            secondary_confidence = _perform_secondary_validation(img_np, face_locs[0], best_match['employee_id'], embedding_dir)
+            
+            # Require both primary and secondary methods to agree
+            confidence_difference = abs(best_match['confidence'] - secondary_confidence)
+            if confidence_difference > 15.0:  # Allow 15% difference between methods
+                frappe.log_error(f"Primary-secondary confidence mismatch: {best_match['confidence']:.1f}% vs {secondary_confidence:.1f}%", "Face Recognition Validation Warning")
+                return {
+                    "status": "error",
+                    "message": "Recognition validation failed - inconsistent results between verification methods"
+                }
+        except Exception as secondary_error:
+            frappe.log_error(f"Secondary validation failed: {str(secondary_error)}", "Secondary Validation Error")
+            # Continue without secondary validation but log the issue
+        
+        # All validation stages passed
+        recognized_employee = best_match['employee_id']
+        confidence = best_match['confidence']
+        
+        # ACCURACY MONITORING: Log comprehensive recognition metrics
+        recognition_metrics = {
+            "employee_id": recognized_employee,
+            "confidence": confidence,
+            "distance": best_match['distance'],
+            "quality_score": face_quality['quality_score'],
+            "validation_stages_passed": 4,  # All 4 stages passed
+            "total_candidates": len(known_encodings),
+            "valid_matches_found": len(valid_matches),
+            "confidence_gap": valid_matches[0]['confidence'] - valid_matches[1]['confidence'] if len(valid_matches) > 1 else "N/A",
+            "thresholds_met": {
+                "distance_threshold": best_match['distance'] < adjusted_tolerance,
+                "confidence_threshold": confidence >= min_confidence_threshold,
+                "quality_threshold": face_quality['quality_score'] >= min_quality_score,
+                "ambiguity_check": len(valid_matches) == 1 or (valid_matches[0]['confidence'] - valid_matches[1]['confidence']) >= required_confidence_gap
+            }
+        }
+        frappe.log_error(f"ACCURACY SUCCESS - Employee Recognition Metrics: {recognition_metrics}", "Face Recognition Accuracy Success")
+        
+        # Get employee details (force reload to avoid cache issues)
+        frappe.clear_document_cache("Employee", recognized_employee)
+        employee = frappe.get_doc("Employee", recognized_employee)
+        
+        # Determine log type if not provided
+        if not log_type:
+            log_type = determine_log_type(recognized_employee)
+        
+        # Create Employee Checkin record
+        checkin = frappe.new_doc("Employee Checkin")
+        checkin.employee = recognized_employee
+        checkin.employee_name = employee.employee_name
+        checkin.time = frappe.utils.now_datetime()
+        checkin.log_type = log_type
+        checkin.device_id = device_id or "Face Recognition System"
+        if project:
+            checkin.custom_project = project
+        
+        # Check HR Settings for geolocation tracking
+        hr_settings = frappe.get_single("HR Settings")
+        geolocation_provided = False
+        if hr_settings.allow_geolocation_tracking:
+            if latitude and longitude:
+                try:
+                    checkin.latitude = float(latitude)
+                    checkin.longitude = float(longitude)
+                    geolocation_provided = True
+                except (ValueError, TypeError):
+                    # Invalid coordinates - continue without geolocation but warn
+                    frappe.log_error(f"Invalid geolocation coordinates provided: lat={latitude}, lng={longitude}")
+            
+        # Note: We allow check-ins without geolocation if coordinates aren't provided
+        # The frontend should handle geolocation collection
+        
+        try:
+            checkin.insert()
+        except frappe.ValidationError as ve:
+            # Handle validation errors from ERPNext (like distance validation)
+            return {
+                "status": "error",
+                "message": f"Check-in validation failed: {str(ve)}",
+                "geolocation_required": hr_settings.allow_geolocation_tracking
+            }
+        
+        return {
+            "status": "success",
+            "message": f"{log_type} recorded for {employee.employee_name}",
+            "employee_id": recognized_employee,
+            "employee_name": employee.employee_name,
+            "log_type": log_type,
+            "time": checkin.time,
+            "confidence": round(confidence, 2),
+            "checkin_id": checkin.name
+        }
             
     except Exception as e:
         import traceback
@@ -523,6 +633,53 @@ def recognize_and_checkin(image_base64, project=None, device_id=None, log_type=N
             "status": "error",
             "message": f"System error during face recognition: {str(e)}"
         }
+
+def _perform_secondary_validation(image: np.ndarray, face_location: Tuple[int, int, int, int], employee_id: str, embedding_dir: str) -> float:
+    """
+    Perform secondary validation using alternative feature extraction methods
+    Returns confidence score from secondary method
+    """
+    try:
+        top, right, bottom, left = face_location
+        face_image = image[top:bottom, left:right]
+        
+        if face_image.size == 0:
+            return 0.0
+        
+        # Load the stored embedding for this employee
+        employee_embedding_path = os.path.join(embedding_dir, f"{employee_id}.npy")
+        if not os.path.exists(employee_embedding_path):
+            return 0.0
+        
+        stored_embedding = np.load(employee_embedding_path)
+        
+        # Extract features using alternative methods for cross-validation
+        from face_checkin.utils.face_recognition_simple import SimpleFaceRecognition
+        secondary_fr = SimpleFaceRecognition(production_mode=False)  # Use higher quality for validation
+        
+        if not secondary_fr.initialized:
+            return 0.0
+        
+        # Extract features using secondary method
+        secondary_features = secondary_fr._extract_face_features(face_image)
+        
+        # Calculate similarity using cosine similarity
+        dot_product = np.dot(stored_embedding, secondary_features)
+        norm_stored = np.linalg.norm(stored_embedding)
+        norm_secondary = np.linalg.norm(secondary_features)
+        
+        if norm_stored == 0 or norm_secondary == 0:
+            return 0.0
+        
+        cosine_similarity = dot_product / (norm_stored * norm_secondary)
+        confidence = max(0, min(100, cosine_similarity * 100))
+        
+        return confidence
+        
+    except Exception as e:
+        frappe.log_error(f"Secondary validation error for {employee_id}: {str(e)}", "Secondary Validation Error")
+        return 0.0
+
 
 def determine_log_type(employee_id):
     """
@@ -1277,6 +1434,119 @@ def clear_employee_cache():
             "status": "error",
             "message": f"Failed to clear employee cache: {str(e)}"
         }
+
+@frappe.whitelist()
+def get_accuracy_statistics(days=7):
+    """
+    Get face recognition accuracy statistics for monitoring
+    """
+    try:
+        from datetime import datetime, timedelta
+        
+        # Get recent error logs related to face recognition
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=int(days))
+        
+        # Query error logs for face recognition metrics
+        accuracy_logs = frappe.db.sql("""
+            SELECT creation, error, title
+            FROM `tabError Log`
+            WHERE title LIKE '%Face Recognition Accuracy%'
+            AND creation BETWEEN %s AND %s
+            ORDER BY creation DESC
+            LIMIT 100
+        """, (start_date, end_date), as_dict=True)
+        
+        # Parse accuracy metrics
+        stats = {
+            "total_attempts": 0,
+            "successful_recognitions": 0,
+            "failed_recognitions": 0,
+            "quality_failures": 0,
+            "confidence_failures": 0,
+            "ambiguity_failures": 0,
+            "avg_confidence": 0,
+            "avg_quality_score": 0,
+            "recognition_rate": 0
+        }
+        
+        confidence_scores = []
+        quality_scores = []
+        
+        for log in accuracy_logs:
+            stats["total_attempts"] += 1
+            
+            if "ACCURACY SUCCESS" in log.get("title", ""):
+                stats["successful_recognitions"] += 1
+                # Parse metrics from log (simplified - in production would use structured logging)
+                try:
+                    import re
+                    confidence_match = re.search(r"'confidence': ([\d.]+)", log.get("error", ""))
+                    quality_match = re.search(r"'quality_score': ([\d.]+)", log.get("error", ""))
+                    
+                    if confidence_match:
+                        confidence_scores.append(float(confidence_match.group(1)))
+                    if quality_match:
+                        quality_scores.append(float(quality_match.group(1)))
+                except:
+                    pass
+            else:
+                stats["failed_recognitions"] += 1
+                # Categorize failure types
+                error_msg = log.get("error", "").lower()
+                if "quality" in error_msg:
+                    stats["quality_failures"] += 1
+                elif "confidence" in error_msg:
+                    stats["confidence_failures"] += 1
+                elif "ambiguous" in error_msg or "similar" in error_msg:
+                    stats["ambiguity_failures"] += 1
+        
+        # Calculate averages
+        if confidence_scores:
+            stats["avg_confidence"] = sum(confidence_scores) / len(confidence_scores)
+        if quality_scores:
+            stats["avg_quality_score"] = sum(quality_scores) / len(quality_scores)
+        
+        # Calculate recognition rate
+        if stats["total_attempts"] > 0:
+            stats["recognition_rate"] = (stats["successful_recognitions"] / stats["total_attempts"]) * 100
+        
+        return {
+            "status": "success",
+            "period_days": days,
+            "statistics": stats,
+            "recommendations": _generate_accuracy_recommendations(stats)
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to get accuracy statistics: {str(e)}"
+        }
+
+def _generate_accuracy_recommendations(stats):
+    """Generate recommendations based on accuracy statistics"""
+    recommendations = []
+    
+    if stats["recognition_rate"] < 85:
+        recommendations.append("Recognition rate is below 85% - consider adjusting thresholds or improving image quality requirements")
+    
+    if stats["quality_failures"] > stats["successful_recognitions"] * 0.3:
+        recommendations.append("High quality failure rate - provide better guidance to users on image capture")
+    
+    if stats["confidence_failures"] > stats["successful_recognitions"] * 0.2:
+        recommendations.append("High confidence failure rate - may need to retrain face embeddings or adjust confidence thresholds")
+    
+    if stats["ambiguity_failures"] > stats["successful_recognitions"] * 0.1:
+        recommendations.append("Ambiguity issues detected - consider retraining similar-looking employees with higher quality images")
+    
+    if stats["avg_confidence"] > 0 and stats["avg_confidence"] < 80:
+        recommendations.append(f"Average confidence is {stats['avg_confidence']:.1f}% - consider improving face embedding quality")
+    
+    if not recommendations:
+        recommendations.append("Face recognition accuracy is performing well within expected parameters")
+    
+    return recommendations
 
 @frappe.whitelist()
 def bulk_delete_face_data():
