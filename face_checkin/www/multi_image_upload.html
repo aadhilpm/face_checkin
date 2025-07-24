@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1f2937">
+    <title>Multi-Image Face Upload</title>
+    <link rel="manifest" href="/assets/face_checkin/manifest.json">
+    <link rel="icon" href="/assets/face_checkin/icon-192.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+            color: #1e293b;
+            padding: 1rem;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 1rem 0;
+        }
+
+        .header h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #64748b;
+            font-size: 1rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #3b82f6;
+            background-color: #f8faff;
+        }
+
+        .upload-area.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .image-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .image-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f3f4f6;
+            aspect-ratio: 1;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-item .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-message {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .status-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #3b82f6;
+            transition: width 0.3s ease;
+        }
+
+        .details-section {
+            background: #f9fafb;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .details-section h4 {
+            margin-bottom: 0.5rem;
+            color: #374151;
+        }
+
+        .details-list {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 0 1rem;
+            }
+            
+            .image-preview {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-images"></i> Multi-Image Face Upload</h1>
+            <p>Upload multiple photos of the same person to create more robust face data</p>
+        </div>
+
+        <div class="card">
+            <form id="multiImageForm">
+                <div class="form-group">
+                    <label for="employeeId">Employee ID *</label>
+                    <input type="text" id="employeeId" name="employeeId" required 
+                           placeholder="Enter employee ID">
+                </div>
+
+                <div class="form-group">
+                    <label>Upload Images (1-10 photos)</label>
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-camera fa-3x" style="color: #9ca3af; margin-bottom: 1rem;"></i>
+                        <p><strong>Click to select images</strong> or drag and drop</p>
+                        <p style="font-size: 0.875rem; color: #6b7280; margin-top: 0.5rem;">
+                            Supported: JPG, PNG, WebP | Max 5MB per image
+                        </p>
+                    </div>
+                    <input type="file" id="imageInput" multiple accept="image/*" style="display: none;">
+                </div>
+
+                <div id="imagePreview" class="image-preview"></div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="validateConsistency" checked>
+                        Validate that all images are of the same person
+                    </label>
+                </div>
+
+                <div id="statusMessage" class="hidden"></div>
+                <div id="progressBar" class="progress-bar hidden">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button type="button" id="previewBtn" class="btn btn-secondary" disabled>
+                        <i class="fas fa-eye"></i> Preview Processing
+                    </button>
+                    <button type="submit" id="uploadBtn" class="btn btn-primary" disabled>
+                        <i class="fas fa-upload"></i> Create Face Data
+                    </button>
+                </div>
+            </form>
+
+            <div id="resultsSection" class="details-section hidden">
+                <h4>Processing Results</h4>
+                <div id="resultsContent" class="details-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class MultiImageUploader {
+            constructor() {
+                this.images = [];
+                this.maxImages = 10;
+                this.maxFileSize = 5 * 1024 * 1024; // 5MB
+                this.initializeElements();
+                this.attachEventListeners();
+            }
+
+            initializeElements() {
+                this.uploadArea = document.getElementById('uploadArea');
+                this.imageInput = document.getElementById('imageInput');
+                this.imagePreview = document.getElementById('imagePreview');
+                this.previewBtn = document.getElementById('previewBtn');
+                this.uploadBtn = document.getElementById('uploadBtn');
+                this.form = document.getElementById('multiImageForm');
+                this.statusMessage = document.getElementById('statusMessage');
+                this.progressBar = document.getElementById('progressBar');
+                this.resultsSection = document.getElementById('resultsSection');
+                this.resultsContent = document.getElementById('resultsContent');
+            }
+
+            attachEventListeners() {
+                // Upload area click
+                this.uploadArea.addEventListener('click', () => {
+                    this.imageInput.click();
+                });
+
+                // File input change
+                this.imageInput.addEventListener('change', (e) => {
+                    this.handleFiles(e.target.files);
+                });
+
+                // Drag and drop
+                this.uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.uploadArea.classList.add('dragover');
+                });
+
+                this.uploadArea.addEventListener('dragleave', () => {
+                    this.uploadArea.classList.remove('dragover');
+                });
+
+                this.uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.uploadArea.classList.remove('dragover');
+                    this.handleFiles(e.dataTransfer.files);
+                });
+
+                // Form submission
+                this.form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.uploadImages();
+                });
+
+                // Preview button
+                this.previewBtn.addEventListener('click', () => {
+                    this.previewProcessing();
+                });
+            }
+
+            handleFiles(files) {
+                const validFiles = Array.from(files).filter(file => {
+                    if (!file.type.startsWith('image/')) {
+                        this.showStatus('Only image files are allowed', 'error');
+                        return false;
+                    }
+                    if (file.size > this.maxFileSize) {
+                        this.showStatus(`File ${file.name} is too large (max 5MB)`, 'error');
+                        return false;
+                    }
+                    return true;
+                });
+
+                if (this.images.length + validFiles.length > this.maxImages) {
+                    this.showStatus(`Maximum ${this.maxImages} images allowed`, 'error');
+                    return;
+                }
+
+                validFiles.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const imageData = {
+                            file: file,
+                            base64: e.target.result.split(',')[1], // Remove data:image/jpeg;base64, prefix
+                            url: e.target.result
+                        };
+                        this.images.push(imageData);
+                        this.updateImagePreview();
+                        this.updateButtons();
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            updateImagePreview() {
+                this.imagePreview.innerHTML = '';
+                this.images.forEach((image, index) => {
+                    const imageItem = document.createElement('div');
+                    imageItem.className = 'image-item';
+                    imageItem.innerHTML = `
+                        <img src="${image.url}" alt="Preview ${index + 1}">
+                        <button type="button" class="remove-btn" onclick="uploader.removeImage(${index})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    this.imagePreview.appendChild(imageItem);
+                });
+            }
+
+            removeImage(index) {
+                this.images.splice(index, 1);
+                this.updateImagePreview();
+                this.updateButtons();
+            }
+
+            updateButtons() {
+                const hasImages = this.images.length > 0;
+                this.previewBtn.disabled = !hasImages;
+                this.uploadBtn.disabled = !hasImages;
+            }
+
+            showStatus(message, type) {
+                this.statusMessage.className = `status-message status-${type}`;
+                this.statusMessage.innerHTML = message;
+                this.statusMessage.classList.remove('hidden');
+                
+                if (type === 'success') {
+                    setTimeout(() => {
+                        this.statusMessage.classList.add('hidden');
+                    }, 5000);
+                }
+            }
+
+            showProgress(show, percentage = 0) {
+                if (show) {
+                    this.progressBar.classList.remove('hidden');
+                    this.progressBar.querySelector('.progress-fill').style.width = `${percentage}%`;
+                } else {
+                    this.progressBar.classList.add('hidden');
+                }
+            }
+
+            async previewProcessing() {
+                if (this.images.length === 0) return;
+
+                this.showProgress(true, 10);
+                this.previewBtn.disabled = true;
+
+                try {
+                    const imagesBase64 = this.images.map(img => img.base64);
+                    
+                    const response = await fetch('/api/method/face_checkin.api.face_api.preview_multi_image_face_data', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Frappe-CSRF-Token': window.csrf_token || ''
+                        },
+                        body: JSON.stringify({
+                            images_base64_list: JSON.stringify(imagesBase64)
+                        })
+                    });
+
+                    this.showProgress(true, 100);
+                    const result = await response.json();
+
+                    if (result.message && result.message.status) {
+                        this.displayPreviewResults(result.message);
+                        this.showStatus('Preview completed successfully', 'success');
+                    } else {
+                        throw new Error(result.message || 'Preview failed');
+                    }
+
+                } catch (error) {
+                    this.showStatus(`Preview failed: ${error.message}`, 'error');
+                } finally {
+                    this.showProgress(false);
+                    this.previewBtn.disabled = false;
+                }
+            }
+
+            async uploadImages() {
+                const employeeId = document.getElementById('employeeId').value.trim();
+                const validateConsistency = document.getElementById('validateConsistency').checked;
+
+                if (!employeeId) {
+                    this.showStatus('Please enter an employee ID', 'error');
+                    return;
+                }
+
+                if (this.images.length === 0) {
+                    this.showStatus('Please select at least one image', 'error');
+                    return;
+                }
+
+                this.showProgress(true, 10);
+                this.uploadBtn.disabled = true;
+
+                try {
+                    const imagesBase64 = this.images.map(img => img.base64);
+                    
+                    const response = await fetch('/api/method/face_checkin.api.face_api.upload_multiple_face_images', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Frappe-CSRF-Token': window.csrf_token || ''
+                        },
+                        body: JSON.stringify({
+                            employee_id: employeeId,
+                            images_base64_list: JSON.stringify(imagesBase64),
+                            validate_consistency: validateConsistency
+                        })
+                    });
+
+                    this.showProgress(true, 100);
+                    const result = await response.json();
+
+                    if (result.message && result.message.status === 'success') {
+                        this.displayUploadResults(result.message);
+                        this.showStatus(result.message.message, 'success');
+                        this.resetForm();
+                    } else if (result.message && result.message.status === 'warning') {
+                        this.showStatus(result.message.message, 'warning');
+                        this.displayUploadResults(result.message);
+                    } else {
+                        throw new Error(result.message?.message || 'Upload failed');
+                    }
+
+                } catch (error) {
+                    this.showStatus(`Upload failed: ${error.message}`, 'error');
+                } finally {
+                    this.showProgress(false);
+                    this.uploadBtn.disabled = false;
+                }
+            }
+
+            displayPreviewResults(result) {
+                const preview = result.preview || {};
+                let html = `
+                    <p><strong>Preview Results:</strong></p>
+                    <ul>
+                        <li>Would succeed: ${preview.would_succeed ? 'Yes' : 'No'}</li>
+                        <li>Images processed: ${preview.images_processed}/${this.images.length}</li>
+                        <li>Images failed: ${preview.images_failed}</li>
+                        <li>Average quality: ${(preview.average_quality || 0).toFixed(1)}%</li>
+                        <li>Has valid encoding: ${preview.has_valid_encoding ? 'Yes' : 'No'}</li>
+                `;
+
+                if (preview.consistency_check) {
+                    const consistency = preview.consistency_check;
+                    html += `
+                        <li>Consistency check: ${consistency.consistent ? 'Passed' : 'Failed'}</li>
+                        <li>Similarity: min=${(consistency.min_similarity || 0).toFixed(3)}, avg=${(consistency.avg_similarity || 0).toFixed(3)}</li>
+                    `;
+                }
+
+                html += '</ul>';
+
+                if (preview.processing_details && preview.processing_details.length > 0) {
+                    html += '<p><strong>Processing Details:</strong></p><ul>';
+                    preview.processing_details.forEach(detail => {
+                        html += `<li>${detail}</li>`;
+                    });
+                    html += '</ul>';
+                }
+
+                this.resultsContent.innerHTML = html;
+                this.resultsSection.classList.remove('hidden');
+            }
+
+            displayUploadResults(result) {
+                const details = result.details || {};
+                let html = `
+                    <p><strong>Upload Results:</strong></p>
+                    <ul>
+                        <li>Employee ID: ${details.employee_id}</li>
+                        <li>Images processed: ${details.images_processed}</li>
+                        <li>Images failed: ${details.images_failed}</li>
+                        <li>Average quality: ${(details.average_quality || 0).toFixed(1)}%</li>
+                `;
+
+                if (details.consistency_check) {
+                    const consistency = details.consistency_check;
+                    html += `
+                        <li>Consistency check: ${consistency.consistent ? 'Passed' : 'Failed'}</li>
+                    `;
+                }
+
+                html += '</ul>';
+
+                if (details.processing_details && details.processing_details.length > 0) {
+                    html += '<p><strong>Processing Details:</strong></p><ul>';
+                    details.processing_details.forEach(detail => {
+                        html += `<li>${detail}</li>`;
+                    });
+                    html += '</ul>';
+                }
+
+                this.resultsContent.innerHTML = html;
+                this.resultsSection.classList.remove('hidden');
+            }
+
+            resetForm() {
+                this.images = [];
+                this.updateImagePreview();
+                this.updateButtons();
+                document.getElementById('employeeId').value = '';
+                this.imageInput.value = '';
+            }
+        }
+
+        // Initialize the uploader when page loads
+        let uploader;
+        document.addEventListener('DOMContentLoaded', () => {
+            uploader = new MultiImageUploader();
+        });
+
+        // Get CSRF token
+        if (typeof frappe !== 'undefined' && frappe.csrf_token) {
+            window.csrf_token = frappe.csrf_token;
+        }
+    </script>
+</body>
+</html>

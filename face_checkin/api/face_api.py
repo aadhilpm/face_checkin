@@ -11,7 +11,8 @@ try:
     from face_checkin.utils.face_recognition_simple import (
         face_locations, face_encodings, compare_faces, face_distance,
         get_face_recognition, FACE_RECOGNITION_AVAILABLE,
-        validate_face_quality, get_best_face_from_multiple
+        validate_face_quality, get_best_face_from_multiple,
+        create_multi_image_face_data, validate_multi_image_consistency
     )
     import numpy as np
     from PIL import Image
@@ -1667,4 +1668,263 @@ def bulk_delete_face_data():
         return {
             "status": "error",
             "message": f"Failed to delete face data: {str(e)}"
+        }
+
+@frappe.whitelist()
+def upload_multiple_face_images(employee_id, images_base64_list, validate_consistency=True):
+    """
+    Upload multiple images for a single employee to create robust face data
+    This helps overcome strict quality requirements by using ensemble learning
+    
+    Args:
+        employee_id: Employee ID
+        images_base64_list: JSON string or list of base64 encoded images
+        validate_consistency: Whether to check if all images are of the same person
+    """
+    try:
+        if not FACE_RECOGNITION_AVAILABLE:
+            return {
+                "status": "error",
+                "message": "Face recognition libraries not available"
+            }
+        
+        # Parse images if provided as JSON string
+        if isinstance(images_base64_list, str):
+            import json
+            try:
+                images_base64_list = json.loads(images_base64_list)
+            except json.JSONDecodeError:
+                return {
+                    "status": "error",
+                    "message": "Invalid JSON format for images list"
+                }
+        
+        if not isinstance(images_base64_list, list) or len(images_base64_list) < 1:
+            return {
+                "status": "error", 
+                "message": "At least one image is required"
+            }
+        
+        if len(images_base64_list) > 10:
+            return {
+                "status": "error",
+                "message": "Maximum 10 images allowed per upload"
+            }
+        
+        # Validate employee exists
+        if not frappe.db.exists("Employee", employee_id):
+            return {
+                "status": "error",
+                "message": f"Employee {employee_id} not found"
+            }
+        
+        # Optional: Validate image consistency 
+        consistency_result = None
+        if validate_consistency and len(images_base64_list) > 1:
+            consistency_result = validate_multi_image_consistency(
+                images_base64_list, 
+                similarity_threshold=0.6  # More lenient for multi-image uploads
+            )
+            
+            if not consistency_result.get('consistent', False):
+                return {
+                    "status": "warning",
+                    "message": "Images may be of different people",
+                    "details": {
+                        "consistency_check": consistency_result,
+                        "suggestion": "Please ensure all images are of the same person, or set validate_consistency=false to skip this check"
+                    }
+                }
+        
+        # Create multi-image face data
+        result = create_multi_image_face_data(
+            images_base64_list, 
+            employee_id=employee_id,
+            use_lenient_quality=True
+        )
+        
+        if not result.get('success', False):
+            return {
+                "status": "error",
+                "message": result.get('message', 'Failed to create face data'),
+                "details": result
+            }
+        
+        # Save the face encoding
+        try:
+            embedding_dir = get_embedding_directory()
+            if not embedding_dir:
+                return {
+                    "status": "error",
+                    "message": "Could not determine embedding directory"
+                }
+            
+            # Ensure directory exists
+            os.makedirs(embedding_dir, exist_ok=True)
+            
+            # Save face encoding
+            encoding_path = os.path.join(embedding_dir, f"{employee_id}.npy")
+            np.save(encoding_path, result['face_encoding'])
+            
+            frappe.log_error(
+                f"Multi-image face data created for {employee_id}: {result['images_processed']} images processed, {result['images_failed']} failed",
+                "Multi-Image Face Upload Success"
+            )
+            
+            return {
+                "status": "success",
+                "message": f"Face data created successfully from {result['images_processed']} images",
+                "details": {
+                    "employee_id": employee_id,
+                    "images_processed": result['images_processed'],
+                    "images_failed": result['images_failed'],
+                    "average_quality": sum(result['quality_scores']) / len(result['quality_scores']) if result['quality_scores'] else 0,
+                    "quality_scores": result['quality_scores'],
+                    "processing_details": result.get('details', []),
+                    "consistency_check": consistency_result,
+                    "encoding_path": encoding_path
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to save face encoding: {str(e)}"
+            }
+            
+    except Exception as e:
+        frappe.log_error(f"Error in multi-image face upload for {employee_id}: {str(e)}", "Multi-Image Face Upload Error")
+        return {
+            "status": "error",
+            "message": f"Multi-image face upload failed: {str(e)}"
+        }
+
+@frappe.whitelist()
+def validate_face_image_consistency(images_base64_list, similarity_threshold=0.7):
+    """
+    Validate that multiple images are of the same person before processing
+    Useful for frontend validation before actual upload
+    
+    Args:
+        images_base64_list: JSON string or list of base64 encoded images
+        similarity_threshold: Minimum similarity required (default 0.7)
+    """
+    try:
+        if not FACE_RECOGNITION_AVAILABLE:
+            return {
+                "status": "error",
+                "message": "Face recognition libraries not available"
+            }
+        
+        # Parse images if provided as JSON string
+        if isinstance(images_base64_list, str):
+            import json
+            try:
+                images_base64_list = json.loads(images_base64_list)
+            except json.JSONDecodeError:
+                return {
+                    "status": "error",
+                    "message": "Invalid JSON format for images list"
+                }
+        
+        if not isinstance(images_base64_list, list):
+            return {
+                "status": "error",
+                "message": "Images must be provided as a list"
+            }
+        
+        if len(images_base64_list) < 2:
+            return {
+                "status": "success",
+                "message": "Single image provided - no consistency check needed",
+                "consistent": True
+            }
+        
+        # Perform consistency validation
+        result = validate_multi_image_consistency(images_base64_list, similarity_threshold)
+        
+        return {
+            "status": "success",
+            "message": result.get('message', 'Consistency check completed'),
+            "consistent": result.get('consistent', False),
+            "details": {
+                "min_similarity": result.get('min_similarity', 0),
+                "avg_similarity": result.get('avg_similarity', 0),
+                "threshold": similarity_threshold,
+                "similarity_matrix": result.get('similarity_matrix', [])
+            }
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in face consistency validation: {str(e)}", "Face Consistency Validation Error") 
+        return {
+            "status": "error",
+            "message": f"Consistency validation failed: {str(e)}"
+        }
+
+@frappe.whitelist()
+def preview_multi_image_face_data(images_base64_list):
+    """
+    Preview what would happen with multi-image face data creation without saving
+    Useful for testing and validation before actual upload
+    
+    Args:
+        images_base64_list: JSON string or list of base64 encoded images
+    """
+    try:
+        if not FACE_RECOGNITION_AVAILABLE:
+            return {
+                "status": "error",
+                "message": "Face recognition libraries not available"
+            }
+        
+        # Parse images if provided as JSON string  
+        if isinstance(images_base64_list, str):
+            import json
+            try:
+                images_base64_list = json.loads(images_base64_list)
+            except json.JSONDecodeError:
+                return {
+                    "status": "error",
+                    "message": "Invalid JSON format for images list"
+                }
+        
+        if not isinstance(images_base64_list, list) or len(images_base64_list) < 1:
+            return {
+                "status": "error",
+                "message": "At least one image is required"
+            }
+        
+        # Create preview of multi-image processing
+        result = create_multi_image_face_data(
+            images_base64_list,
+            employee_id="preview",
+            use_lenient_quality=True
+        )
+        
+        # Also check consistency if multiple images
+        consistency_result = None
+        if len(images_base64_list) > 1:
+            consistency_result = validate_multi_image_consistency(images_base64_list, 0.7)
+        
+        return {
+            "status": "success" if result.get('success', False) else "warning",
+            "message": result.get('message', 'Processing completed'),
+            "preview": {
+                "would_succeed": result.get('success', False),
+                "images_processed": result.get('images_processed', 0),
+                "images_failed": result.get('images_failed', 0),
+                "average_quality": sum(result.get('quality_scores', [])) / len(result.get('quality_scores', [])) if result.get('quality_scores') else 0,
+                "quality_scores": result.get('quality_scores', []),
+                "processing_details": result.get('details', []),
+                "consistency_check": consistency_result,
+                "has_valid_encoding": result.get('face_encoding') is not None
+            }
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in multi-image face data preview: {str(e)}", "Multi-Image Preview Error")
+        return {
+            "status": "error", 
+            "message": f"Preview failed: {str(e)}"
         }

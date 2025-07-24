@@ -21,6 +21,8 @@ try:
     import hashlib
     import cv2
     import numpy as np
+    import base64
+    from io import BytesIO
     FACE_RECOGNITION_AVAILABLE = True
 except ImportError as e:
     FACE_RECOGNITION_AVAILABLE = False
@@ -428,6 +430,266 @@ class SimpleFaceRecognition:
             except:
                 print(f"Face distance calculation error: {e}")
             return [1.0] * len(face_encodings)
+
+    def create_multi_image_face_data(self, images_base64_list, employee_id=None, use_lenient_quality=True):
+        """
+        Create robust face data from multiple images of the same person
+        Uses ensemble learning to create a more accurate face embedding
+        
+        Args:
+            images_base64_list: List of base64 encoded images
+            employee_id: Optional employee ID for logging
+            use_lenient_quality: Use more lenient quality checks for individual images
+            
+        Returns:
+            dict: {
+                'success': bool,
+                'face_encoding': np.array or None,
+                'images_processed': int,
+                'images_failed': int,
+                'quality_scores': list,
+                'message': str
+            }
+        """
+        try:
+            valid_encodings = []
+            quality_scores = []
+            failed_images = 0
+            processing_details = []
+            
+            for i, image_base64 in enumerate(images_base64_list):
+                try:
+                    # Decode image
+                    image_data = base64.b64decode(image_base64)
+                    image = Image.open(BytesIO(image_data))
+                    image_np = np.array(image)
+                    
+                    # Convert RGB to BGR for OpenCV
+                    if len(image_np.shape) == 3 and image_np.shape[2] == 3:
+                        image_np = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+                    
+                    # Find faces in image
+                    face_locations_found = self.face_locations(image_np)
+                    
+                    if not face_locations_found:
+                        failed_images += 1
+                        processing_details.append(f"Image {i+1}: No face detected")
+                        continue
+                    
+                    # Use the first (largest) face found
+                    face_location = face_locations_found[0]
+                    
+                    # Validate quality with lenient settings
+                    quality_result = self.validate_face_quality(
+                        image_np, 
+                        face_location, 
+                        lenient_mode=use_lenient_quality,
+                        strict_accuracy=False
+                    )
+                    
+                    if not quality_result.get('valid', False):
+                        # For multi-image, we're more forgiving - only skip if critically bad
+                        quality_score = quality_result.get('score', 0)
+                        if quality_score < 30:  # Very low threshold for multi-image mode
+                            failed_images += 1
+                            processing_details.append(f"Image {i+1}: Quality too low ({quality_score})")
+                            continue
+                    
+                    # Generate face encoding
+                    encodings = self.face_encodings(image_np, [face_location])
+                    
+                    if encodings and len(encodings) > 0:
+                        encoding = encodings[0]
+                        # Validate encoding quality
+                        if np.linalg.norm(encoding) > 0:  # Ensure non-zero encoding
+                            valid_encodings.append(encoding)
+                            quality_scores.append(quality_result.get('score', 50))
+                            processing_details.append(f"Image {i+1}: Successfully processed (quality: {quality_result.get('score', 50)})")
+                        else:
+                            failed_images += 1
+                            processing_details.append(f"Image {i+1}: Invalid encoding generated")
+                    else:
+                        failed_images += 1
+                        processing_details.append(f"Image {i+1}: Failed to generate encoding")
+                        
+                except Exception as e:
+                    failed_images += 1
+                    processing_details.append(f"Image {i+1}: Processing error - {str(e)}")
+                    continue
+            
+            # Check if we have enough valid encodings
+            if len(valid_encodings) < 1:
+                return {
+                    'success': False,
+                    'face_encoding': None,
+                    'images_processed': 0,
+                    'images_failed': failed_images,
+                    'quality_scores': [],
+                    'message': 'No valid face encodings could be generated from any images',
+                    'details': processing_details
+                }
+            
+            # Create ensemble encoding using weighted average
+            if len(valid_encodings) == 1:
+                # Single encoding
+                final_encoding = valid_encodings[0]
+                message = f"Created face data from 1 image (others failed quality checks)"
+            else:
+                # Multiple encodings - create weighted average
+                weights = np.array(quality_scores) / 100.0  # Normalize quality scores to weights
+                weights = weights / np.sum(weights)  # Normalize to sum to 1
+                
+                # Weighted average of encodings
+                final_encoding = np.zeros_like(valid_encodings[0])
+                for encoding, weight in zip(valid_encodings, weights):
+                    final_encoding += encoding * weight
+                
+                # Normalize the final encoding
+                norm = np.linalg.norm(final_encoding)
+                if norm > 0:
+                    final_encoding = final_encoding / norm
+                
+                message = f"Created ensemble face data from {len(valid_encodings)} images (avg quality: {np.mean(quality_scores):.1f})"
+            
+            # Additional validation of final encoding
+            if np.linalg.norm(final_encoding) == 0:
+                return {
+                    'success': False,
+                    'face_encoding': None,
+                    'images_processed': len(valid_encodings),
+                    'images_failed': failed_images,
+                    'quality_scores': quality_scores,
+                    'message': 'Generated encoding is invalid (zero norm)',
+                    'details': processing_details
+                }
+            
+            return {
+                'success': True,
+                'face_encoding': final_encoding,
+                'images_processed': len(valid_encodings),
+                'images_failed': failed_images,
+                'quality_scores': quality_scores,
+                'message': message,
+                'details': processing_details
+            }
+            
+        except Exception as e:
+            error_msg = f"Multi-image face data creation failed: {str(e)}"
+            try:
+                frappe.log_error(error_msg)
+            except:
+                print(error_msg)
+            
+            return {
+                'success': False,
+                'face_encoding': None,
+                'images_processed': 0,
+                'images_failed': len(images_base64_list),
+                'quality_scores': [],
+                'message': error_msg,
+                'details': [error_msg]
+            }
+
+    def validate_multi_image_consistency(self, images_base64_list, similarity_threshold=0.7):
+        """
+        Validate that multiple images are of the same person
+        
+        Args:
+            images_base64_list: List of base64 encoded images
+            similarity_threshold: Minimum similarity required between images
+            
+        Returns:
+            dict: {
+                'consistent': bool,
+                'similarity_matrix': list,
+                'message': str
+            }
+        """
+        try:
+            if len(images_base64_list) < 2:
+                return {
+                    'consistent': True,
+                    'similarity_matrix': [],
+                    'message': 'Single image provided - no consistency check needed'
+                }
+            
+            # Generate encodings for all images
+            encodings = []
+            for i, image_base64 in enumerate(images_base64_list):
+                try:
+                    image_data = base64.b64decode(image_base64)
+                    image = Image.open(BytesIO(image_data))
+                    image_np = np.array(image)
+                    
+                    if len(image_np.shape) == 3 and image_np.shape[2] == 3:
+                        image_np = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+                    
+                    face_locations_found = self.face_locations(image_np)
+                    if not face_locations_found:
+                        continue
+                    
+                    face_encodings_found = self.face_encodings(image_np, [face_locations_found[0]])
+                    if face_encodings_found and len(face_encodings_found) > 0:
+                        encodings.append(face_encodings_found[0])
+                        
+                except Exception:
+                    continue
+            
+            if len(encodings) < 2:
+                return {
+                    'consistent': False,
+                    'similarity_matrix': [],
+                    'message': 'Could not extract faces from enough images for consistency check'
+                }
+            
+            # Calculate similarity matrix
+            similarity_matrix = []
+            similarities = []
+            
+            for i in range(len(encodings)):
+                row = []
+                for j in range(len(encodings)):
+                    if i == j:
+                        similarity = 1.0
+                    else:
+                        distance = self.face_distance([encodings[i]], encodings[j])[0]
+                        similarity = 1.0 - distance
+                        similarities.append(similarity)
+                    row.append(similarity)
+                similarity_matrix.append(row)
+            
+            # Check if all similarities meet threshold
+            min_similarity = min(similarities) if similarities else 0
+            avg_similarity = sum(similarities) / len(similarities) if similarities else 0
+            
+            consistent = min_similarity >= similarity_threshold
+            
+            message = f"Consistency check: min={min_similarity:.3f}, avg={avg_similarity:.3f}, threshold={similarity_threshold}"
+            if not consistent:
+                message += " - Images may be of different people"
+            else:
+                message += " - Images appear to be of the same person"
+            
+            return {
+                'consistent': consistent,
+                'similarity_matrix': similarity_matrix,
+                'min_similarity': min_similarity,
+                'avg_similarity': avg_similarity,
+                'message': message
+            }
+            
+        except Exception as e:
+            error_msg = f"Consistency validation failed: {str(e)}"
+            try:
+                frappe.log_error(error_msg)
+            except:
+                print(error_msg)
+            
+            return {
+                'consistent': False,
+                'similarity_matrix': [],
+                'message': error_msg
+            }
     
     def validate_face_quality(self, image: np.ndarray, face_location: Tuple[int, int, int, int], lenient_mode: bool = False, strict_accuracy: bool = True) -> dict:
         """
@@ -634,3 +896,15 @@ def get_best_face_from_multiple(image, face_locations):
     """Get best quality face from multiple faces - compatibility function"""
     fr = get_face_recognition()
     return fr.get_best_face_from_multiple(image, face_locations)
+
+
+def create_multi_image_face_data(images_base64_list, employee_id=None, use_lenient_quality=True):
+    """Create robust face data from multiple images - compatibility function"""
+    fr = get_face_recognition()
+    return fr.create_multi_image_face_data(images_base64_list, employee_id, use_lenient_quality)
+
+
+def validate_multi_image_consistency(images_base64_list, similarity_threshold=0.7):
+    """Validate that multiple images are of the same person - compatibility function"""
+    fr = get_face_recognition()
+    return fr.validate_multi_image_consistency(images_base64_list, similarity_threshold)
