@@ -1725,7 +1725,7 @@ def upload_multiple_face_images(employee_id, images_base64_list, validate_consis
         if validate_consistency and len(images_base64_list) > 1:
             consistency_result = validate_multi_image_consistency(
                 images_base64_list, 
-                similarity_threshold=0.6  # More lenient for multi-image uploads
+                similarity_threshold=0.5  # More lenient for multi-image uploads
             )
             
             if not consistency_result.get('consistent', False):
@@ -1802,7 +1802,7 @@ def upload_multiple_face_images(employee_id, images_base64_list, validate_consis
         }
 
 @frappe.whitelist()
-def validate_face_image_consistency(images_base64_list, similarity_threshold=0.7):
+def validate_face_image_consistency(images_base64_list, similarity_threshold=0.5):
     """
     Validate that multiple images are of the same person before processing
     Useful for frontend validation before actual upload

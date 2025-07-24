@@ -594,7 +594,7 @@ class SimpleFaceRecognition:
                 'details': [error_msg]
             }
 
-    def validate_multi_image_consistency(self, images_base64_list, similarity_threshold=0.7):
+    def validate_multi_image_consistency(self, images_base64_list, similarity_threshold=0.5):
         """
         Validate that multiple images are of the same person
         
@@ -666,7 +666,10 @@ class SimpleFaceRecognition:
             min_similarity = min(similarities) if similarities else 0
             avg_similarity = sum(similarities) / len(similarities) if similarities else 0
             
-            consistent = min_similarity >= similarity_threshold
+            # Use a hybrid approach: average similarity should be above threshold,
+            # and minimum similarity should be above a more lenient threshold
+            consistent = (avg_similarity >= similarity_threshold and 
+                         min_similarity >= (similarity_threshold - 0.1))
             
             message = f"Consistency check: min={min_similarity:.3f}, avg={avg_similarity:.3f}, threshold={similarity_threshold}"
             if not consistent:
@@ -932,7 +935,7 @@ def create_multi_image_face_data(images_base64_list, employee_id=None, use_lenie
     return fr.create_multi_image_face_data(images_base64_list, employee_id, use_lenient_quality)
 
 
-def validate_multi_image_consistency(images_base64_list, similarity_threshold=0.7):
+def validate_multi_image_consistency(images_base64_list, similarity_threshold=0.5):
     """Validate that multiple images are of the same person - compatibility function"""
     fr = get_face_recognition()
     return fr.validate_multi_image_consistency(images_base64_list, similarity_threshold)

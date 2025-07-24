@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1e40af">
+    <title>Simple Face Check-in</title>
+    <link rel="manifest" href="/assets/face_checkin/manifest.json">
+    <link rel="icon" href="/assets/face_checkin/icon-192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+            min-height: 100vh;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            color: #1f2937;
+        }
+
+        .project-select {
+            margin-bottom: 2rem;
+        }
+
+        .project-select label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .project-select select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: white;
+            color: #1f2937;
+            transition: border-color 0.3s ease;
+        }
+
+        .project-select select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .camera-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 16px;
+            background: #f3f4f6;
+            border: 3px solid #e5e7eb;
+            margin-bottom: 1.5rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 140px;
+            justify-content: center;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        .status-message {
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+            text-align: center;
+            display: none;
+        }
+
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .status-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+
+        .employee-info {
+            background: #059669;
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .employee-info h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .employee-info p {
+            opacity: 0.9;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .time-display {
+            text-align: center;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 10px;
+            }
+            
+            .card {
+                padding: 1.5rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .btn {
+                min-width: unset;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-face-smile"></i> Face Check-in</h1>
+            <p>Simple and reliable employee check-in system</p>
+        </div>
+
+        <div class="card">
+            <div class="time-display" id="timeDisplay"></div>
+
+            <!-- Project Selection -->
+            <div class="project-select">
+                <label for="projectSelect">
+                    <i class="fas fa-briefcase"></i> Select Project (Optional)
+                </label>
+                <select id="projectSelect">
+                    <option value="">Loading projects...</option>
+                </select>
+            </div>
+
+            <!-- Camera Section -->
+            <div class="camera-section">
+                <video id="video" autoplay muted playsinline></video>
+                
+                <div class="controls">
+                    <button class="btn btn-primary" id="startCameraBtn">
+                        <i class="fas fa-video"></i>
+                        Start Camera
+                    </button>
+                    <button class="btn btn-success" id="checkinBtn" disabled>
+                        <i class="fas fa-camera"></i>
+                        Check In/Out
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status Message -->
+            <div class="status-message" id="statusMessage"></div>
+
+            <!-- Employee Info Display -->
+            <div class="employee-info" id="employeeInfo">
+                <h3 id="employeeName"></h3>
+                <p id="employeeDetails"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set Frappe context
+        window.frappe = window.frappe || {};
+        frappe.csrf_token = '{{ csrf_token }}';
+        
+        class SimpleCheckInApp {
+            constructor() {
+                this.video = document.getElementById('video');
+                this.projectSelect = document.getElementById('projectSelect');
+                this.startCameraBtn = document.getElementById('startCameraBtn');
+                this.checkinBtn = document.getElementById('checkinBtn');
+                this.statusMessage = document.getElementById('statusMessage');
+                this.employeeInfo = document.getElementById('employeeInfo');
+                this.employeeName = document.getElementById('employeeName');
+                this.employeeDetails = document.getElementById('employeeDetails');
+                this.timeDisplay = document.getElementById('timeDisplay');
+                
+                this.stream = null;
+                this.isProcessing = false;
+                
+                this.init();
+            }
+            
+            async init() {
+                this.updateTime();
+                setInterval(() => this.updateTime(), 1000);
+                
+                await this.loadProjects();
+                await this.checkSystemStatus();
+                
+                this.startCameraBtn.addEventListener('click', () => this.startCamera());
+                this.checkinBtn.addEventListener('click', () => this.performCheckin());
+            }
+            
+            updateTime() {
+                const now = new Date();
+                this.timeDisplay.textContent = now.toLocaleString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            }
+            
+            async checkSystemStatus() {
+                try {
+                    const response = await fetch('/api/method/face_checkin.api.simple_face_api.simple_system_status', {
+                        headers: {
+                            'X-Frappe-CSRF-Token': frappe.csrf_token
+                        }
+                    });
+                    const data = await response.json();
+                    
+                    if (!data.message.face_recognition_available) {
+                        this.showStatus('error', 'Face recognition system not available. Please contact administrator.');
+                        this.startCameraBtn.disabled = true;
+                    } else if (!data.message.system_ready) {
+                        this.showStatus('info', 'No employee faces registered yet. Please register faces first.');
+                    }
+                } catch (error) {
+                    console.error('System status check failed:', error);
+                }
+            }
+            
+            async loadProjects() {
+                try {
+                    this.projectSelect.innerHTML = '<option value="">Loading projects...</option>';
+                    
+                    const response = await fetch('/api/method/face_checkin.api.simple_face_api.get_simple_projects', {
+                        headers: {
+                            'X-Frappe-CSRF-Token': frappe.csrf_token
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    this.projectSelect.innerHTML = '<option value="">No project selected</option>';
+                    
+                    if (data.message && data.message.status === 'success' && data.message.projects) {
+                        data.message.projects.forEach(project => {
+                            const option = document.createElement('option');
+                            option.value = project.name;
+                            option.textContent = project.project_name || project.name;
+                            this.projectSelect.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                    this.projectSelect.innerHTML = '<option value="">No projects available</option>';
+                }
+            }
+            
+            async startCamera() {
+                try {
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            facingMode: 'user'
+                        }
+                    });
+                    
+                    this.video.srcObject = this.stream;
+                    this.startCameraBtn.disabled = true;
+                    this.checkinBtn.disabled = false;
+                    this.startCameraBtn.innerHTML = '<i class="fas fa-video"></i> Camera Active';
+                    
+                    this.showStatus('info', 'Camera ready. Position your face in the frame and click Check In/Out.');
+                    
+                } catch (error) {
+                    console.error('Camera error:', error);
+                    this.showStatus('error', 'Failed to access camera. Please check permissions.');
+                }
+            }
+            
+            async performCheckin() {
+                if (this.isProcessing) return;
+                
+                this.isProcessing = true;
+                this.checkinBtn.disabled = true;
+                this.checkinBtn.innerHTML = '<span class="loading"></span> Processing...';
+                
+                try {
+                    // Capture image from video
+                    const canvas = document.createElement('canvas');
+                    canvas.width = this.video.videoWidth;
+                    canvas.height = this.video.videoHeight;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(this.video, 0, 0);
+                    
+                    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    // Perform recognition and checkin
+                    const response = await fetch('/api/method/face_checkin.api.simple_face_api.simple_recognize_and_checkin', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Frappe-CSRF-Token': frappe.csrf_token
+                        },
+                        body: JSON.stringify({
+                            image_base64: imageData,
+                            project: this.projectSelect.value || null,
+                            device_id: 'Simple_Face_Checkin'
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.message && result.message.status === 'success') {
+                        this.showEmployeeSuccess(result.message);
+                    } else {
+                        this.showStatus('error', result.message ? result.message.message : 'Recognition failed');
+                    }
+                    
+                } catch (error) {
+                    console.error('Check-in error:', error);
+                    this.showStatus('error', 'System error during check-in. Please try again.');
+                } finally {
+                    this.isProcessing = false;
+                    this.checkinBtn.disabled = false;
+                    this.checkinBtn.innerHTML = '<i class="fas fa-camera"></i> Check In/Out';
+                }
+            }
+            
+            showEmployeeSuccess(result) {
+                this.employeeName.textContent = result.employee_name;
+                this.employeeDetails.textContent = `${result.log_type} recorded at ${new Date(result.time).toLocaleTimeString()} (${result.confidence}% confidence)`;
+                
+                this.employeeInfo.style.display = 'block';
+                this.showStatus('success', `${result.log_type} successful for ${result.employee_name}!`);
+                
+                // Hide employee info after 5 seconds
+                setTimeout(() => {
+                    this.employeeInfo.style.display = 'none';
+                }, 5000);
+            }
+            
+            showStatus(type, message) {
+                this.statusMessage.className = `status-message status-${type}`;
+                this.statusMessage.textContent = message;
+                this.statusMessage.style.display = 'block';
+                
+                // Auto-hide after 5 seconds for success/info messages
+                if (type === 'success' || type === 'info') {
+                    setTimeout(() => {
+                        this.statusMessage.style.display = 'none';
+                    }, 5000);
+                }
+            }
+        }
+        
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new SimpleCheckInApp();
+        });
+        
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/assets/face_checkin/js/sw.js')
+                    .catch(error => console.log('SW registration failed'));
+            });
+        }
+    </script>
+</body>
+</html>
