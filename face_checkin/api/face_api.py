@@ -179,13 +179,14 @@ def upload_face(employee_id, image_base64=None):
             "message": "No face detected in image"
         }
 
-    # Check image quality with lenient mode for employee enrollment
-    quality_result = validate_face_quality(img_np, face_locs[0], lenient_mode=True)
+    # Check image quality with ultra-lenient mode for employee enrollment
+    quality_result = validate_face_quality(img_np, face_locs[0], lenient_mode=True, strict_accuracy=False, employee_enrollment_mode=True)
     
-    if not quality_result["valid"]:
+    # For employee enrollment, only reject if quality is extremely poor
+    if not quality_result["valid"] and quality_result.get("quality_score", 0) < 15:
         return {
             "status": "error",
-            "message": f"Poor image quality: {', '.join(quality_result['issues'])}",
+            "message": f"Image quality too poor for face recognition: {', '.join(quality_result['issues'])}",
             "quality_score": quality_result.get("quality_score", 0),
             "suggestions": quality_result["issues"]
         }
@@ -1370,13 +1371,14 @@ def upload_employee_image(employee_id, image_base64, filename="employee_photo.jp
                         "message": "No face detected in uploaded image"
                     }
                 
-                # Check image quality with lenient mode for employee uploads
-                quality_result = validate_face_quality(img_np, face_locs[0], lenient_mode=True)
+                # Check image quality with ultra-lenient mode for employee uploads
+                quality_result = validate_face_quality(img_np, face_locs[0], lenient_mode=True, strict_accuracy=False, employee_enrollment_mode=True)
                 
-                if not quality_result["valid"]:
+                # For employee image uploads, only reject if quality is extremely poor
+                if not quality_result["valid"] and quality_result.get("quality_score", 0) < 15:
                     return {
                         "status": "error",
-                        "message": f"Poor image quality: {', '.join(quality_result['issues'])}",
+                        "message": f"Image quality too poor for face recognition: {', '.join(quality_result['issues'])}",
                         "quality_score": quality_result.get("quality_score", 0),
                         "suggestions": quality_result["issues"]
                     }

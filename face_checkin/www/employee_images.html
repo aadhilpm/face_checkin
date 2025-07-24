@@ -582,17 +582,34 @@
                         <button class="btn btn-success" id="capturePhotoBtn" onclick="capturePhoto()" disabled>
                             <i class="fas fa-camera-retro"></i> Capture Photo
                         </button>
+                        <button class="btn" id="finishCaptureBtn" onclick="finishCapture()" disabled style="display: none;">
+                            <i class="fas fa-check"></i> Finish Capturing
+                        </button>
                     </div>
+                    
+                    <!-- Photo Counter and Info -->
+                    <div id="captureInfo" style="display: none; text-align: center; margin: 1rem 0; padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="font-size: 0.875rem; color: #374151; margin-bottom: 0.5rem;">
+                            <i class="fas fa-camera" style="color: #3b82f6; margin-right: 0.5rem;"></i>
+                            <span id="photoCount">0</span> photos captured
+                        </div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">
+                            Take multiple photos from different angles for better accuracy
+                        </div>
+                    </div>
+                    
+                    <!-- Captured Photos Preview -->
+                    <div id="capturedPhotosPreview" style="display: none; margin: 1rem 0;"></div>
                 </div>
 
                 <!-- File Upload Section -->
                 <div class="file-upload-area hidden" id="fileSection">
                     <div onclick="document.getElementById('fileInput').click()">
                         <div style="font-size: 3rem; color: #3b82f6; margin-bottom: 1rem;"><i class="fas fa-cloud-upload-alt"></i></div>
-                        <h4 style="margin-bottom: 0.5rem; color: #1e293b;">Drop image here or click to browse</h4>
-                        <p style="color: #64748b;">Supports JPG, PNG files</p>
+                        <h4 style="margin-bottom: 0.5rem; color: #1e293b;">Drop images here or click to browse</h4>
+                        <p style="color: #64748b;">Supports JPG, PNG files (multiple images recommended for better accuracy)</p>
                     </div>
-                    <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+                    <input type="file" id="fileInput" accept="image/*" multiple style="display: none;" onchange="handleFileSelect(event)">
                 </div>
 
                 <!-- Preview Section -->
@@ -961,6 +978,8 @@
         let currentEmployeeId = null;
         let currentStream = null;
         let capturedImageData = null;
+        let multipleImages = [];
+        let capturedPhotos = [];
 
         function uploadImage(employeeId) {
             currentEmployeeId = employeeId;
@@ -1124,20 +1143,148 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0);
             
-            capturedImageData = canvas.toDataURL('image/jpeg', 0.8);
-            showPreview(capturedImageData);
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Add to captured photos array
+            capturedPhotos.push({
+                data: imageData,
+                name: `camera_photo_${capturedPhotos.length + 1}.jpg`,
+                size: Math.round(imageData.length * 0.75) // Approximate size
+            });
+            
+            // Update UI
+            updateCaptureUI();
+            showCapturedPhotosPreview();
+            
+            // Enable finish button after first capture
+            document.getElementById('finishCaptureBtn').disabled = false;
+            document.getElementById('finishCaptureBtn').style.display = 'inline-flex';
+            
+            // Limit to 10 photos
+            if (capturedPhotos.length >= 10) {
+                document.getElementById('capturePhotoBtn').disabled = true;
+                document.getElementById('capturePhotoBtn').innerHTML = '<i class="fas fa-camera-retro"></i> Max Photos Reached';
+            }
+        }
+        
+        function updateCaptureUI() {
+            const photoCount = document.getElementById('photoCount');
+            const captureInfo = document.getElementById('captureInfo');
+            
+            photoCount.textContent = capturedPhotos.length;
+            captureInfo.style.display = 'block';
+        }
+        
+        function showCapturedPhotosPreview() {
+            const previewContainer = document.getElementById('capturedPhotosPreview');
+            previewContainer.style.display = 'block';
+            
+            previewContainer.innerHTML = `
+                <div style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem; color: #374151;">
+                    <i class="fas fa-images" style="color: #3b82f6; margin-right: 0.5rem;"></i>
+                    Captured Photos:
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 0.5rem; max-height: 200px; overflow-y: auto;">
+                    ${capturedPhotos.map((photo, index) => `
+                        <div style="position: relative; text-align: center;">
+                            <img src="${photo.data}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 2px solid #e2e8f0;">
+                            <button onclick="removeCapturedPhoto(${index})" style="position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%; background: #ef4444; color: white; border: none; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; justify-content: center;">
+                                ×
+                            </button>
+                            <div style="font-size: 0.625rem; color: #6b7280; margin-top: 0.25rem;">${index + 1}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        function removeCapturedPhoto(index) {
+            capturedPhotos.splice(index, 1);
+            updateCaptureUI();
+            
+            if (capturedPhotos.length === 0) {
+                document.getElementById('capturedPhotosPreview').style.display = 'none';
+                document.getElementById('captureInfo').style.display = 'none';
+                document.getElementById('finishCaptureBtn').disabled = true;
+                document.getElementById('finishCaptureBtn').style.display = 'none';
+            } else {
+                showCapturedPhotosPreview();
+            }
+            
+            // Re-enable capture button if we're under the limit
+            if (capturedPhotos.length < 10) {
+                document.getElementById('capturePhotoBtn').disabled = false;
+                document.getElementById('capturePhotoBtn').innerHTML = '<i class="fas fa-camera-retro"></i> Capture Photo';
+            }
+        }
+        
+        function finishCapture() {
+            if (capturedPhotos.length === 0) {
+                showModalStatus('error', 'No photos captured');
+                return;
+            }
+            
+            if (capturedPhotos.length === 1) {
+                // Single photo - use existing flow
+                capturedImageData = capturedPhotos[0].data;
+                showPreview(capturedImageData);
+            } else {
+                // Multiple photos - use multi-image flow
+                multipleImages = [...capturedPhotos];
+                showMultiplePreview(multipleImages);
+            }
         }
 
         function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (file) {
+            const files = Array.from(event.target.files);
+            if (files.length > 0) {
+                if (files.length === 1) {
+                    // Single image - use existing flow
+                    const file = files[0];
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        capturedImageData = e.target.result;
+                        showPreview(capturedImageData);
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    // Multiple images - use new flow
+                    handleMultipleFiles(files);
+                }
+            }
+        }
+        
+        function handleMultipleFiles(files) {
+            if (files.length > 10) {
+                showModalStatus('error', 'Maximum 10 images allowed. Please select fewer images.');
+                return;
+            }
+            
+            multipleImages = [];
+            let loadedCount = 0;
+            const imageFiles = files.filter(f => f.type.startsWith('image/'));
+            
+            if (imageFiles.length === 0) {
+                showModalStatus('error', 'No valid image files selected.');
+                return;
+            }
+            
+            imageFiles.forEach((file, index) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    capturedImageData = e.target.result;
-                    showPreview(capturedImageData);
+                    multipleImages.push({
+                        data: e.target.result,
+                        name: file.name,
+                        size: file.size
+                    });
+                    loadedCount++;
+                    
+                    if (loadedCount === imageFiles.length) {
+                        showMultiplePreview(multipleImages);
+                    }
                 };
                 reader.readAsDataURL(file);
-            }
+            });
         }
 
         function showPreview(imageData) {
@@ -1150,6 +1297,109 @@
             
             // Add quality preview feedback
             showImageQualityPreview(imageData);
+        }
+        
+        function showMultiplePreview(images) {
+            const previewSection = document.getElementById('previewSection');
+            const previewImage = document.getElementById('previewImage');
+            
+            // Hide upload method sections
+            document.getElementById('cameraSection').classList.add('hidden');
+            document.getElementById('fileSection').classList.add('hidden');
+            
+            // Create multi-image preview
+            const multiPreviewContainer = document.createElement('div');
+            multiPreviewContainer.id = 'multiImagePreview';
+            multiPreviewContainer.style.cssText = `
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 0.75rem;
+                margin-bottom: 1rem;
+                max-height: 300px;
+                overflow-y: auto;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 1rem;
+                background: #f8fafc;
+            `;
+            
+            images.forEach((img, index) => {
+                const imgContainer = document.createElement('div');
+                imgContainer.style.cssText = 'position: relative; text-align: center;';
+                
+                const imgElement = document.createElement('img');
+                imgElement.src = img.data;
+                imgElement.style.cssText = `
+                    width: 100%;
+                    height: 100px;
+                    object-fit: cover;
+                    border-radius: 6px;
+                    border: 2px solid #e2e8f0;
+                `;
+                
+                const imgLabel = document.createElement('div');
+                imgLabel.textContent = `Image ${index + 1}`;
+                imgLabel.style.cssText = `
+                    font-size: 0.75rem;
+                    color: #64748b;
+                    margin-top: 0.25rem;
+                `;
+                
+                imgContainer.appendChild(imgElement);
+                imgContainer.appendChild(imgLabel);
+                multiPreviewContainer.appendChild(imgContainer);
+            });
+            
+            // Remove existing multi-preview if any
+            const existingPreview = document.getElementById('multiImagePreview');
+            if (existingPreview) {
+                existingPreview.remove();
+            }
+            
+            // Hide single image preview
+            previewImage.style.display = 'none';
+            
+            // Insert multi-image preview
+            previewSection.insertBefore(multiPreviewContainer, previewSection.firstChild);
+            previewSection.classList.remove('hidden');
+            
+            // Update upload button text
+            const uploadBtn = document.getElementById('uploadBtn');
+            uploadBtn.innerHTML = `<i class="fas fa-upload"></i> Upload ${images.length} Images to Employee Record`;
+            
+            // Show multi-image info
+            showMultiImageInfo(images);
+        }
+        
+        function showMultiImageInfo(images) {
+            const previewSection = document.getElementById('previewSection');
+            
+            // Remove existing info
+            const existingInfo = document.getElementById('multiImageInfo');
+            if (existingInfo) {
+                existingInfo.remove();
+            }
+            
+            const infoDiv = document.createElement('div');
+            infoDiv.id = 'multiImageInfo';
+            infoDiv.className = 'info-box';
+            infoDiv.style.marginTop = '1rem';
+            
+            const totalSize = images.reduce((sum, img) => sum + img.size, 0);
+            
+            infoDiv.innerHTML = `
+                <i class="fas fa-images" style="color: #3b82f6; margin-right: 0.5rem;"></i>
+                <strong>Multi-Image Upload Benefits:</strong><br>
+                <small style="margin-left: 1.5rem;">• Better face recognition accuracy</small><br>
+                <small style="margin-left: 1.5rem;">• Handles varying lighting conditions</small><br>
+                <small style="margin-left: 1.5rem;">• More robust to image quality issues</small><br>
+                <br>
+                <strong>Upload Details:</strong><br>
+                <small>Images: ${images.length} files</small><br>
+                <small>Total size: ${(totalSize / 1024 / 1024).toFixed(1)} MB</small>
+            `;
+            
+            previewSection.appendChild(infoDiv);
         }
 
         function showImageQualityPreview(imageData) {
@@ -1204,28 +1454,104 @@
             document.getElementById('capturePhotoBtn').disabled = true;
             document.getElementById('startCameraBtn').innerHTML = '<i class="fas fa-camera"></i> Start Camera';
             
-            // Reset file input
+            // Reset file input and multi-image data
             document.getElementById('fileInput').value = '';
             capturedImageData = null;
+            multipleImages = [];
+            capturedPhotos = [];
             
             // Remove quality preview warnings
             const qualityPreview = document.querySelector('.quality-preview');
             if (qualityPreview) qualityPreview.remove();
             
-            // Hide current image info (but don't reset it, as it should stay for reuploads)
-            // Only hide it when fully closing the modal, not when switching upload methods
+            // Remove multi-image elements
+            const multiPreview = document.getElementById('multiImagePreview');
+            if (multiPreview) multiPreview.remove();
+            
+            const multiInfo = document.getElementById('multiImageInfo');
+            if (multiInfo) multiInfo.remove();
+            
+            // Reset single image preview
+            const previewImage = document.getElementById('previewImage');
+            previewImage.style.display = 'block';
+            
+            // Reset upload button text
+            const uploadBtn = document.getElementById('uploadBtn');
+            uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload to Employee Record';
+            
+            // Reset camera capture UI
+            document.getElementById('captureInfo').style.display = 'none';
+            document.getElementById('capturedPhotosPreview').style.display = 'none';
+            document.getElementById('finishCaptureBtn').style.display = 'none';
+            document.getElementById('finishCaptureBtn').disabled = true;
+            document.getElementById('capturePhotoBtn').innerHTML = '<i class="fas fa-camera-retro"></i> Capture Photo';
             
             // Clear modal status messages
             document.getElementById('modalStatusPanel').classList.add('hidden');
         }
 
         async function uploadToEmployee() {
-            if (!capturedImageData || !currentEmployeeId) {
-                showModalStatus('error', 'No image data or employee selected');
+            // Check if we have either single image or multiple images
+            const hasMultipleImages = multipleImages && multipleImages.length > 0;
+            const hasSingleImage = capturedImageData;
+            const hasCapturedPhotos = capturedPhotos && capturedPhotos.length > 0;
+            
+            if (!hasMultipleImages && !hasSingleImage && !hasCapturedPhotos) {
+                showModalStatus('error', 'No image data selected');
+                return;
+            }
+            
+            if (!currentEmployeeId) {
+                showModalStatus('error', 'No employee selected');
                 return;
             }
 
             try {
+                // Handle captured photos that haven't been processed yet
+                if (hasCapturedPhotos && !hasMultipleImages && !hasSingleImage) {
+                    showModalStatus('warning', 'Please click "Finish Capturing" to process your captured photos before uploading.');
+                    return;
+                }
+                
+                if (hasMultipleImages) {
+                    // Upload multiple images
+                    showStatus('info', `Uploading ${multipleImages.length} images and creating enhanced face data...`);
+                    
+                    const imageDataList = multipleImages.map(img => img.data);
+                    
+                    const response = await fetch('/api/method/face_checkin.api.face_api.upload_multiple_face_images', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Frappe-CSRF-Token': frappe.csrf_token
+                        },
+                        body: JSON.stringify({
+                            employee_id: currentEmployeeId,
+                            images_base64_list: imageDataList,
+                            validate_consistency: true
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.message && data.message.status === 'success') {
+                        const details = data.message.details || {};
+                        showStatus('success', `<i class="fas fa-check-circle"></i> Enhanced face data created from ${details.images_processed || multipleImages.length} images!<br>
+                            <small>Average quality: ${Math.round(details.average_quality || 0)}%</small><br>
+                            <small>This multi-image approach provides better recognition accuracy</small>`);
+                        
+                        // Close modal and refresh
+                        closeUploadModal();
+                        setTimeout(() => loadEmployees(), 1000);
+                        return;
+                    } else {
+                        // Handle multi-image upload errors
+                        handleUploadError(data, true);
+                        return;
+                    }
+                }
+                
+                // Single image upload (existing functionality)
                 showStatus('info', 'Uploading image and creating face data...');
 
                 const response = await fetch('/api/method/face_checkin.api.face_api.upload_employee_image', {
@@ -1256,36 +1582,7 @@
                     closeUploadModal();
                     setTimeout(() => loadEmployees(), 1000);
                 } else {
-                    // Enhanced error handling with quality validation messages
-                    let errorMessage = data.message ? data.message.message : 'Upload failed';
-                    let errorDetails = '';
-                    
-                    // Check for quality validation details
-                    if (data.message && data.message.quality_score !== undefined) {
-                        errorDetails += `<br><small><strong>Quality Score:</strong> ${data.message.quality_score}/100</small>`;
-                    }
-                    
-                    if (data.message && data.message.suggestions && data.message.suggestions.length > 0) {
-                        errorDetails += `<br><small><strong>Suggestions:</strong></small>`;
-                        data.message.suggestions.forEach(suggestion => {
-                            errorDetails += `<br><small>• ${suggestion}</small>`;
-                        });
-                    }
-                    
-                    // Show error both in modal and main status for visibility
-                    const errorMessageHtml = `<i class="fas fa-exclamation-circle"></i> <strong>Image Quality Issue:</strong><br>
-                        ${errorMessage}${errorDetails}<br><br>
-                        <small><strong>Tips for better image quality:</strong></small><br>
-                        <small>• Ensure good lighting conditions</small><br>
-                        <small>• Face should be clearly visible and centered</small><br>
-                        <small>• Avoid blur by holding camera steady</small><br>
-                        <small>• Remove sunglasses or face coverings</small>`;
-                    
-                    // Show in modal (primary location)
-                    showModalStatus('error', errorMessageHtml);
-                    
-                    // Also show in main status (secondary location)
-                    showStatus('error', errorMessageHtml);
+                    handleUploadError(data);
                 }
             } catch (error) {
                 let errorMessage = error.message;
@@ -1302,8 +1599,60 @@
                 showStatus('error', errorHtml);
             }
         }
-
-
+        
+        function handleUploadError(data, isMultiImage = false) {
+            // Enhanced error handling with quality validation messages
+            let errorMessage = data.message ? data.message.message : 'Upload failed';
+            let errorDetails = '';
+            
+            // Check for quality validation details
+            if (data.message && data.message.quality_score !== undefined) {
+                errorDetails += `<br><small><strong>Quality Score:</strong> ${data.message.quality_score}/100</small>`;
+            }
+            
+            if (data.message && data.message.suggestions && data.message.suggestions.length > 0) {
+                errorDetails += `<br><small><strong>Suggestions:</strong></small>`;
+                data.message.suggestions.forEach(suggestion => {
+                    errorDetails += `<br><small>• ${suggestion}</small>`;
+                });
+            }
+            
+            // Check if it's a consistency issue (multi-image specific)
+            if (data.message && data.message.status === 'warning' && data.message.details && data.message.details.consistency_check) {
+                errorDetails += `<br><br><small><strong>Consistency Check Failed:</strong></small><br>`;
+                errorDetails += `<small>The uploaded images may be of different people.</small><br>`;
+                errorDetails += `<small>Please ensure all images show the same person's face.</small>`;
+            }
+            
+            // Show error both in modal and main status for visibility
+            const tips = isMultiImage ? [
+                'Upload multiple images for better accuracy',
+                'Ensure all images are of the same person',
+                'Use good lighting conditions',
+                'Face should be clearly visible and centered',
+                'Avoid blur by holding camera steady',
+                'Remove sunglasses or face coverings'
+            ] : [
+                'Ensure good lighting conditions',
+                'Face should be clearly visible and centered', 
+                'Avoid blur by holding camera steady',
+                'Remove sunglasses or face coverings',
+                'Consider uploading multiple images for better results'
+            ];
+            
+            const tipsList = tips.map(tip => `<small>• ${tip}</small>`).join('<br>');
+            
+            const errorMessageHtml = `<i class="fas fa-exclamation-circle"></i> <strong>Image Quality Issue:</strong><br>
+                ${errorMessage}${errorDetails}<br><br>
+                <small><strong>Tips for better results:</strong></small><br>
+                ${tipsList}`;
+            
+            // Show in modal (primary location)
+            showModalStatus('error', errorMessageHtml);
+            
+            // Also show in main status (secondary location)
+            showStatus('error', errorMessageHtml);
+        }
 
         // Store employee data for modal use
         let currentEmployeeData = [];
@@ -1337,16 +1686,25 @@
             });
             
             fileSection.addEventListener('drop', function(e) {
-                const files = e.dataTransfer.files;
+                const files = Array.from(e.dataTransfer.files);
                 if (files.length > 0) {
-                    const file = files[0];
-                    if (file.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            capturedImageData = e.target.result;
-                            showPreview(capturedImageData);
-                        };
-                        reader.readAsDataURL(file);
+                    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+                    if (imageFiles.length > 0) {
+                        if (imageFiles.length === 1) {
+                            // Single image - use existing flow
+                            const file = imageFiles[0];
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                capturedImageData = e.target.result;
+                                showPreview(capturedImageData);
+                            };
+                            reader.readAsDataURL(file);
+                        } else {
+                            // Multiple images - use new flow
+                            handleMultipleFiles(imageFiles);
+                        }
+                    } else {
+                        showModalStatus('error', 'Please drop image files only (JPG, PNG)');
                     }
                 }
             });

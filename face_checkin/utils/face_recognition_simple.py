@@ -479,21 +479,25 @@ class SimpleFaceRecognition:
                     # Use the first (largest) face found
                     face_location = face_locations_found[0]
                     
-                    # Validate quality with lenient settings
+                    # Validate quality with very lenient settings for employee enrollment
                     quality_result = self.validate_face_quality(
                         image_np, 
                         face_location, 
-                        lenient_mode=use_lenient_quality,
-                        strict_accuracy=False
+                        lenient_mode=True,
+                        strict_accuracy=False,
+                        employee_enrollment_mode=True  # New parameter for ultra-lenient mode
                     )
                     
                     if not quality_result.get('valid', False):
-                        # For multi-image, we're more forgiving - only skip if critically bad
-                        quality_score = quality_result.get('score', 0)
-                        if quality_score < 30:  # Very low threshold for multi-image mode
+                        # For multi-image employee enrollment, we're very forgiving - only skip if critically bad
+                        quality_score = quality_result.get('quality_score', 0)
+                        if quality_score < 15:  # Ultra-low threshold for multi-image employee enrollment
                             failed_images += 1
-                            processing_details.append(f"Image {i+1}: Quality too low ({quality_score})")
+                            processing_details.append(f"Image {i+1}: Quality too low ({quality_score}) - {', '.join(quality_result.get('issues', []))}")
                             continue
+                        else:
+                            # Accept the image even if it doesn't pass strict validation
+                            processing_details.append(f"Image {i+1}: Accepted with quality issues ({quality_score}) - {', '.join(quality_result.get('issues', []))}")
                     
                     # Generate face encoding
                     encodings = self.face_encodings(image_np, [face_location])
@@ -691,7 +695,7 @@ class SimpleFaceRecognition:
                 'message': error_msg
             }
     
-    def validate_face_quality(self, image: np.ndarray, face_location: Tuple[int, int, int, int], lenient_mode: bool = False, strict_accuracy: bool = True) -> dict:
+    def validate_face_quality(self, image: np.ndarray, face_location: Tuple[int, int, int, int], lenient_mode: bool = False, strict_accuracy: bool = True, employee_enrollment_mode: bool = False) -> dict:
         """
         Validate face image quality for better recognition accuracy
         Returns quality metrics and recommendations
@@ -712,7 +716,14 @@ class SimpleFaceRecognition:
             quality_issues = []
             
             # Enhanced quality checks for strict accuracy mode
-            if strict_accuracy:
+            if employee_enrollment_mode:
+                # ULTRA-LENIENT MODE - Very relaxed standards for employee enrollment
+                min_face_size = 30
+                dark_threshold = 10
+                bright_threshold = 245
+                contrast_threshold = 5
+                blur_threshold = 15
+            elif strict_accuracy:
                 # STRICT ACCURACY MODE - Higher standards
                 min_face_size = 80 if not lenient_mode else 60
                 dark_threshold = 35 if not lenient_mode else 25
@@ -749,8 +760,8 @@ class SimpleFaceRecognition:
             if laplacian_var < blur_threshold:
                 quality_issues.append(f"Image too blurry (sharpness: {laplacian_var:.1f}/{blur_threshold}) - hold steady and ensure good focus")
             
-            # 5. STRICT ACCURACY: Additional advanced quality checks
-            if strict_accuracy:
+            # 5. STRICT ACCURACY: Additional advanced quality checks (skip in employee enrollment mode)
+            if strict_accuracy and not employee_enrollment_mode:
                 # Check for over/under exposure
                 hist = cv2.calcHist([gray_face], [0], None, [256], [0, 256])
                 hist = hist.flatten()
@@ -778,23 +789,40 @@ class SimpleFaceRecognition:
                 if noise_level > 8.0:
                     quality_issues.append(f"High image noise level ({noise_level:.1f}) - improve camera quality or lighting")
             
-            # 5. Check if face is roughly centered and not cut off
+            # 6. Check if face is roughly centered and not cut off (more lenient for employee enrollment)
             face_width = right - left
             face_height = bottom - top
             image_height, image_width = image.shape[:2]
             
-            # Face should be at least 10% of image width/height for good quality
-            if face_width < 0.10 * image_width or face_height < 0.10 * image_height:
-                quality_issues.append("Face too small in frame - move closer")
+            if not employee_enrollment_mode:
+                # Face should be at least 10% of image width/height for good quality
+                min_face_ratio = 0.05 if lenient_mode else 0.10
+                if face_width < min_face_ratio * image_width or face_height < min_face_ratio * image_height:
+                    quality_issues.append("Face too small in frame - move closer")
+                
+                # Face shouldn't be cut off at edges
+                edge_margin = 5 if lenient_mode else 10
+                if left < edge_margin or top < edge_margin or right > (image_width - edge_margin) or bottom > (image_height - edge_margin):
+                    quality_issues.append("Face partially cut off - center yourself in frame")
+            else:
+                # Ultra-lenient checks for employee enrollment - only flag if severely cut off
+                if face_width < 0.02 * image_width or face_height < 0.02 * image_height:
+                    quality_issues.append("Face extremely small in frame")
+                
+                # Only flag if face is severely cut off (at the very edge)
+                if left <= 0 or top <= 0 or right >= image_width or bottom >= image_height:
+                    quality_issues.append("Face severely cut off at image edges")
             
-            # Face shouldn't be cut off at edges
-            edge_margin = 10
-            if left < edge_margin or top < edge_margin or right > (image_width - edge_margin) or bottom > (image_height - edge_margin):
-                quality_issues.append("Face partially cut off - center yourself in frame")
+            # Calculate quality score - more forgiving for employee enrollment
+            if employee_enrollment_mode:
+                # In employee enrollment mode, give higher scores even with issues
+                quality_score = max(20, 90 - len(quality_issues) * 10)  # Start at 90, deduct less per issue, minimum 20
+            else:
+                quality_score = max(0, 100 - len(quality_issues) * 20)
             
             result = {
                 "valid": len(quality_issues) == 0,
-                "quality_score": max(0, 100 - len(quality_issues) * 20),
+                "quality_score": quality_score,
                 "issues": quality_issues,
                 "metrics": {
                     "brightness": mean_brightness,
@@ -886,10 +914,10 @@ def face_distance(known_encodings, face_encoding):
     return fr.face_distance(known_encodings, face_encoding)
 
 
-def validate_face_quality(image, face_location, lenient_mode=False, strict_accuracy=True):
+def validate_face_quality(image, face_location, lenient_mode=False, strict_accuracy=True, employee_enrollment_mode=False):
     """Validate face quality - compatibility function"""
     fr = get_face_recognition()
-    return fr.validate_face_quality(image, face_location, lenient_mode, strict_accuracy)
+    return fr.validate_face_quality(image, face_location, lenient_mode, strict_accuracy, employee_enrollment_mode)
 
 
 def get_best_face_from_multiple(image, face_locations):
