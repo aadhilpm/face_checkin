@@ -4,6 +4,7 @@ from datetime import datetime
 import base64
 from io import BytesIO
 import glob
+from typing import Tuple
 
 # Optional imports for face recognition functionality
 try:
@@ -795,41 +796,67 @@ def check_system_status():
     """
     Simple system status check for face recognition setup
     """
-    # Check face recognition availability
-    face_available = FACE_RECOGNITION_AVAILABLE
-    
-    # Get embedding directory
-    embedding_dir = get_embedding_directory()
-    dir_exists = bool(embedding_dir and os.path.exists(embedding_dir))
-    
-    # Check ONNX availability
-    onnx_available = False
-    onnx_models_ready = False
     try:
-        import onnxruntime
-        onnx_available = True
+        # Check face recognition availability
+        face_available = FACE_RECOGNITION_AVAILABLE
+        
+        # Get embedding directory
+        embedding_dir = None
+        dir_exists = False
         try:
-            from face_checkin.utils.onnx_face_recognition import get_onnx_face_recognition
-            onnx_fr = get_onnx_face_recognition()
-            onnx_models_ready = onnx_fr.is_available()
-        except:
+            embedding_dir = get_embedding_directory()
+            dir_exists = bool(embedding_dir and os.path.exists(embedding_dir))
+        except Exception as e:
+            frappe.log_error(f"Error getting embedding directory: {str(e)}", "System Status Check")
+        
+        # Check ONNX availability
+        onnx_available = False
+        onnx_models_ready = False
+        try:
+            import onnxruntime
+            onnx_available = True
+            try:
+                from face_checkin.utils.onnx_face_recognition import get_onnx_face_recognition
+                onnx_fr = get_onnx_face_recognition()
+                onnx_models_ready = onnx_fr.is_available()
+            except Exception as e:
+                frappe.log_error(f"Error checking ONNX models: {str(e)}", "System Status Check")
+        except ImportError:
             pass
-    except:
-        pass
-    
-    # Get user info
-    user = frappe.session.user if hasattr(frappe, 'session') else "Guest"
-    roles = frappe.get_roles(user) if user != "Guest" else []
-    
-    return {
-        "face_recognition_available": face_available,
-        "embedding_directory_exists": dir_exists,
-        "embedding_directory": embedding_dir,
-        "onnx_available": onnx_available,
-        "onnx_models_ready": onnx_models_ready,
-        "user": user,
-        "user_roles": roles
-    }
+        except Exception as e:
+            frappe.log_error(f"Error checking ONNX runtime: {str(e)}", "System Status Check")
+        
+        # Get user info
+        user = frappe.session.user if hasattr(frappe, 'session') else "Guest"
+        roles = []
+        try:
+            roles = frappe.get_roles(user) if user != "Guest" else []
+        except Exception as e:
+            frappe.log_error(f"Error getting user roles: {str(e)}", "System Status Check")
+        
+        return {
+            "face_recognition_available": face_available,
+            "embedding_directory_exists": dir_exists,
+            "embedding_directory": embedding_dir,
+            "onnx_available": onnx_available,
+            "onnx_models_ready": onnx_models_ready,
+            "user": user,
+            "user_roles": roles
+        }
+        
+    except Exception as e:
+        error_msg = f"System status check failed: {str(e)}"
+        frappe.log_error(error_msg, "System Status Check Error")
+        return {
+            "face_recognition_available": False,
+            "embedding_directory_exists": False,
+            "embedding_directory": None,
+            "onnx_available": False,
+            "onnx_models_ready": False,
+            "user": "Unknown",
+            "user_roles": [],
+            "error": error_msg
+        }
 
 @frappe.whitelist()
 def diagnose_face_data():
@@ -1002,77 +1029,107 @@ def get_detailed_status():
     """
     Detailed system diagnosis - simplified version
     """
-    status = {}
-    
-    # Test dependencies one by one
     try:
-        import cv2
-        status["opencv"] = "Available"
-    except Exception as e:
-        status["opencv"] = f"Error: {str(e)}"
-    
-    try:
-        from PIL import Image
-        status["pil"] = "Available"
-    except Exception as e:
-        status["pil"] = f"Error: {str(e)}"
-    
-    try:
-        import numpy as np
-        status["numpy"] = "Available"
-    except Exception as e:
-        status["numpy"] = f"Error: {str(e)}"
-    
-    # Check ONNX Runtime
-    try:
-        import onnxruntime as ort
-        status["onnxruntime"] = "Available"
-        status["onnx_version"] = ort.__version__
-    except Exception as e:
-        status["onnxruntime"] = f"Not installed"
-        status["onnx_version"] = None
-    
-    # Check ONNX face recognition integration
-    try:
-        from face_checkin.utils.onnx_face_recognition import get_onnx_face_recognition
-        onnx_fr = get_onnx_face_recognition()
-        status["onnx_models"] = "Available" if onnx_fr.is_available() else "Not loaded"
-        status["onnx_models_dir"] = onnx_fr.models_dir
+        status = {}
         
-        # Check individual model files
-        if hasattr(onnx_fr, 'model_urls'):
-            model_status = {}
-            for model_key, model_info in onnx_fr.model_urls.items():
-                model_path = os.path.join(onnx_fr.models_dir, model_info['filename'])
-                if os.path.exists(model_path):
-                    size_mb = os.path.getsize(model_path) / (1024 * 1024)
-                    model_status[model_key] = f"Downloaded ({size_mb:.1f}MB)"
-                else:
-                    model_status[model_key] = "Not downloaded"
-            status["onnx_model_files"] = model_status
-    except Exception as e:
-        status["onnx_models"] = f"Error: {str(e)}"
-        status["onnx_models_dir"] = None
-        status["onnx_model_files"] = {}
-    
-    # Check directory
-    embedding_dir = get_embedding_directory()
-    status["embedding_dir"] = embedding_dir
-    status["dir_exists"] = os.path.exists(embedding_dir) if embedding_dir else False
-    
-    # Check embeddings
-    if status["dir_exists"]:
+        # Test dependencies one by one
         try:
-            files = [f for f in os.listdir(embedding_dir) if f.endswith('.npy')]
-            status["embedding_files"] = len(files)
-        except:
+            import cv2
+            status["opencv"] = "Available"
+        except Exception as e:
+            status["opencv"] = f"Error: {str(e)}"
+        
+        try:
+            from PIL import Image
+            status["pil"] = "Available"
+        except Exception as e:
+            status["pil"] = f"Error: {str(e)}"
+        
+        try:
+            import numpy as np
+            status["numpy"] = "Available"
+        except Exception as e:
+            status["numpy"] = f"Error: {str(e)}"
+        
+        # Check ONNX Runtime
+        try:
+            import onnxruntime as ort
+            status["onnxruntime"] = "Available"
+            status["onnx_version"] = ort.__version__
+        except ImportError:
+            status["onnxruntime"] = "Not installed"
+            status["onnx_version"] = None
+        except Exception as e:
+            status["onnxruntime"] = f"Error: {str(e)}"
+            status["onnx_version"] = None
+        
+        # Check ONNX face recognition integration
+        try:
+            from face_checkin.utils.onnx_face_recognition import get_onnx_face_recognition
+            onnx_fr = get_onnx_face_recognition()
+            status["onnx_models"] = "Available" if onnx_fr.is_available() else "Not loaded"
+            status["onnx_models_dir"] = onnx_fr.models_dir
+            
+            # Check individual model files
+            if hasattr(onnx_fr, 'model_urls'):
+                model_status = {}
+                for model_key, model_info in onnx_fr.model_urls.items():
+                    model_path = os.path.join(onnx_fr.models_dir, model_info['filename'])
+                    if os.path.exists(model_path):
+                        size_mb = os.path.getsize(model_path) / (1024 * 1024)
+                        model_status[model_key] = f"Downloaded ({size_mb:.1f}MB)"
+                    else:
+                        model_status[model_key] = "Not downloaded"
+                status["onnx_model_files"] = model_status
+        except Exception as e:
+            frappe.log_error(f"Error checking ONNX face recognition: {str(e)}", "Detailed Status Check")
+            status["onnx_models"] = f"Error: {str(e)}"
+            status["onnx_models_dir"] = None
+            status["onnx_model_files"] = {}
+        
+        # Check directory
+        try:
+            embedding_dir = get_embedding_directory()
+            status["embedding_dir"] = embedding_dir
+            status["dir_exists"] = os.path.exists(embedding_dir) if embedding_dir else False
+        except Exception as e:
+            frappe.log_error(f"Error getting embedding directory: {str(e)}", "Detailed Status Check")
+            status["embedding_dir"] = None
+            status["dir_exists"] = False
+        
+        # Check embeddings
+        if status["dir_exists"]:
+            try:
+                files = [f for f in os.listdir(status["embedding_dir"]) if f.endswith('.npy')]
+                status["embedding_files"] = len(files)
+            except Exception as e:
+                frappe.log_error(f"Error listing embedding files: {str(e)}", "Detailed Status Check")
+                status["embedding_files"] = 0
+        else:
             status["embedding_files"] = 0
-    else:
-        status["embedding_files"] = 0
-    
-    status["face_recognition_flag"] = FACE_RECOGNITION_AVAILABLE
-    
-    return status
+        
+        status["face_recognition_flag"] = FACE_RECOGNITION_AVAILABLE
+        
+        return status
+        
+    except Exception as e:
+        error_msg = f"Detailed status check failed: {str(e)}"
+        frappe.log_error(error_msg, "Detailed Status Check Error")
+        return {
+            "opencv": "Error during check",
+            "pil": "Error during check", 
+            "numpy": "Error during check",
+            "onnxruntime": "Error during check",
+            "onnx_version": None,
+            "onnx_models": "Error during check",
+            "onnx_models_dir": None,
+            "onnx_model_files": {},
+            "embedding_dir": None,
+            "dir_exists": False,
+            "embedding_files": 0,
+            "face_recognition_flag": False,
+            "error": error_msg
+        }
 
 @frappe.whitelist()
 def get_geolocation_settings():

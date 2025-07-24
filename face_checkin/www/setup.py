@@ -7,5 +7,6 @@ def get_context(context):
     
     # Add user context
     context.user = frappe.session.user
+    context.csrf_token = frappe.sessions.get_csrf_token()
     
     return context

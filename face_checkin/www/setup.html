@@ -600,27 +600,48 @@
             container.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Loading system status...</div>';
 
             try {
-                const response = await fetch('/api/method/face_checkin.api.face_api.check_system_status', {
+                const response = await fetch('/api/method/face_checkin.api.face_api.check_system_status?' + new URLSearchParams({
+                    '_': Date.now() // Cache buster
+                }), {
+                    method: 'GET',
                     headers: {
-                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                        'X-Frappe-CSRF-Token': frappe.csrf_token,
+                        'Accept': 'application/json'
                     }
                 });
-                const data = await response.json();
                 
-                if (response.ok && data && data.message) {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                if (data && data.message) {
                     displayStatus(data.message);
+                } else if (data && data.exc) {
+                    container.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Server Error: ${data.exc}</div>`;
+                    console.error('Server Exception:', data.exc);
                 } else {
-                    container.innerHTML = '<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Failed to load system status</div>';
+                    container.innerHTML = '<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Unexpected response format from server</div>';
+                    console.error('Unexpected response:', data);
                 }
             } catch (error) {
                 console.error('Error loading status:', error);
-                container.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Error: ${error.message}</div>`;
+                container.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Network Error: ${error.message}<br><small>Check browser console for details</small></div>`;
             }
         }
 
         // Display status in modern format
         function displayStatus(data) {
             const container = document.getElementById('status-container');
+            
+            // Handle error in API response
+            if (data.error) {
+                container.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> System Error: ${data.error}</div>`;
+                return;
+            }
+            
             const faceOk = data.face_recognition_available;
             const dirOk = data.embedding_directory_exists;
             
@@ -693,27 +714,47 @@
             container.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Running comprehensive system check...</div>';
 
             try {
-                const response = await fetch('/api/method/face_checkin.api.face_api.get_detailed_status', {
+                const response = await fetch('/api/method/face_checkin.api.face_api.get_detailed_status?' + new URLSearchParams({
+                    '_': Date.now() // Cache buster
+                }), {
+                    method: 'GET',
                     headers: {
-                        'X-Frappe-CSRF-Token': frappe.csrf_token
+                        'X-Frappe-CSRF-Token': frappe.csrf_token,
+                        'Accept': 'application/json'
                     }
                 });
-                const data = await response.json();
                 
-                if (response.ok && data && data.message) {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Detailed API Response:', data);
+                
+                if (data && data.message) {
                     displayDetailedStatus(data.message);
+                } else if (data && data.exc) {
+                    container.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Server Error: ${data.exc}</div>`;
+                    console.error('Server Exception:', data.exc);
                 } else {
-                    container.innerHTML = '<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Failed to load detailed status</div>';
+                    container.innerHTML = '<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Unexpected response format from server</div>';
+                    console.error('Unexpected response:', data);
                 }
             } catch (error) {
                 console.error('Error loading detailed status:', error);
-                container.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Error: ${error.message}</div>`;
+                container.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> Network Error: ${error.message}<br><small>Check browser console for details</small></div>`;
             }
         }
 
         // Display detailed status
         function displayDetailedStatus(data) {
             const container = document.getElementById('status-container');
+            
+            // Handle error in API response
+            if (data.error) {
+                container.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i> System Error: ${data.error}</div>`;
+                return;
+            }
             
             container.innerHTML = `
                 <div class="status-item">
